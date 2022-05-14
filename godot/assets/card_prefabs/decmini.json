@@ -1,0 +1,5 @@
+{    "texture": "decmini",
+    "card_state": "CardState::Default",
+    "card_type": "CardType::Unit",
+    "description": "Hellow World",
+}

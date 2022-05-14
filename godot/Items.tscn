@@ -1,0 +1,14 @@
+[gd_scene format=2]
+
+[node name="Items" type="Node2D"]
+
+[node name="Label" type="Label" parent="."]
+margin_right = 149.0
+margin_bottom = 32.0
+text = "0"
+align = 1
+valign = 1
+
+[node name="0" type="Sprite" parent="."]
+z_index = -1
+centered = false

@@ -1,0 +1,11 @@
+[gd_scene format=2]
+
+[node name="Builds" type="Node2D"]
+
+[node name="Label" type="Label" parent="."]
+margin_right = 150.0
+margin_bottom = 180.0
+
+[node name="0" type="Sprite" parent="."]
+z_index = -1
+centered = false

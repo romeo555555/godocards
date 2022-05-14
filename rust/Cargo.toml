@@ -1,0 +1,18 @@
+[package]
+name = "godocards"
+version = "0.1.0"
+authors = ["romeo555555 <romeo7662@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+gdnative = "0.10.0"
+# gdnative = { path = "../../godot-rust/gdnative" }
+conv = "0.3.3"
+nanoserde = "0.1.29"
+bitfield = "0.13.2"
+base64 = "0.13.0"
+message-io = "0.14.5"
+# common = { path = "/home/roman7662/game/godocards/server/src/common/" }

@@ -1,0 +1,23 @@
+[gd_scene format=2]
+
+[node name="Deck" type="Node2D"]
+
+[node name="CardCount" type="Label" parent="."]
+margin_right = 100.0
+margin_bottom = 81.0
+text = "0"
+align = 1
+valign = 1
+
+[node name="DeadCount" type="Label" parent="."]
+margin_left = 50.0
+margin_top = 99.0
+margin_right = 150.0
+margin_bottom = 180.0
+text = "0"
+align = 1
+valign = 1
+
+[node name="0" type="Sprite" parent="."]
+z_index = -1
+centered = false

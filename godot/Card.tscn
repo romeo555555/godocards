@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=2]
+
+[ext_resource path="res://assets/sprites/tampmini.png" type="Texture" id=1]
+
+[node name="Card" type="Control"]
+
+[node name="Sprite" type="TextureRect" parent="."]
+margin_right = 150.0
+margin_bottom = 180.0
+texture = ExtResource( 1 )

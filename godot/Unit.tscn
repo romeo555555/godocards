@@ -1,0 +1,55 @@
+[gd_scene load_steps=3 format=2]
+
+[ext_resource path="res://assets/sprites/tampmini.png" type="Texture" id=1]
+[ext_resource path="res://assets/sprites/stats_field.png" type="Texture" id=2]
+
+[node name="Card" type="Control"]
+
+[node name="Sprite" type="TextureRect" parent="."]
+margin_right = 150.0
+margin_bottom = 180.0
+texture = ExtResource( 1 )
+
+[node name="Mana" type="Label" parent="."]
+margin_right = 40.0
+margin_bottom = 14.0
+text = "0"
+
+[node name="Attack" type="Label" parent="."]
+margin_top = 165.0
+margin_right = 40.0
+margin_bottom = 179.0
+text = "0"
+
+[node name="Healty" type="Label" parent="."]
+margin_left = 135.0
+margin_top = 165.0
+margin_right = 175.0
+margin_bottom = 179.0
+text = "0"
+
+[node name="Node2D" type="Node2D" parent="."]
+position = Vector2( 75, 90 )
+
+[node name="StatsField" type="Sprite" parent="Node2D"]
+position = Vector2( -75, -60 )
+texture = ExtResource( 2 )
+
+[node name="StatsField5" type="Sprite" parent="Node2D/StatsField"]
+texture = ExtResource( 2 )
+
+[node name="StatsField6" type="Sprite" parent="Node2D/StatsField"]
+position = Vector2( 0, 30 )
+texture = ExtResource( 2 )
+
+[node name="StatsField7" type="Sprite" parent="Node2D/StatsField"]
+position = Vector2( 0, 60 )
+texture = ExtResource( 2 )
+
+[node name="StatsField8" type="Sprite" parent="Node2D/StatsField"]
+position = Vector2( 0, 90 )
+texture = ExtResource( 2 )
+
+[node name="StatsField9" type="Sprite" parent="Node2D/StatsField"]
+position = Vector2( 0, 120 )
+texture = ExtResource( 2 )
