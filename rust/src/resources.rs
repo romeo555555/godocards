@@ -52,8 +52,8 @@ impl Resources {
     pub fn flip_card(&mut self, card_id: CardId, hash_card: HashCard) {
         let stats = self.bd_cards.get(&hash_card).unwrap().clone();
         let card = self.get_card(card_id);
-        card.node.free();
-        card.node.init
+        card.node.queue_free();
+        // card.node.init
     }
 }
 impl Default for Resources {
@@ -483,4 +483,3 @@ pub mod create {
 // "stats_back".to_owned(),
 // "stats_field".to_owned(),
 // ));
-
