@@ -85,8 +85,8 @@ impl Player {
     // }
     //remove_card_on_tabel
 
-    pub fn mana_update(&mut self, mana: Mana) {
-        self.builds.update(mana);
+    pub fn mana_update(&mut self, count: u64, color: ManaColor) {
+        self.builds.update(count, color);
     }
     // pub fn print_mana_pool(&self) -> String {
     //     self.mana.print()
@@ -196,19 +196,18 @@ impl Builds {
     pub fn new(rect: Rect, labels: Vec<RefLabel>) -> Self {
         Self { rect, labels }
     }
-    pub fn update(&mut self, mana: Mana) {
-        let (idx, count) = match mana {
-            Mana::Red(count) => (0, count),
-            Mana::Blue(count) => (1, count),
-            Mana::Green(count) => (2, count),
-            Mana::White(count) => (3, count),
-            Mana::Black(count) => (4, count),
-        };
+    pub fn update(&mut self, count: u64, color: ManaColor) {
         self.labels
-            .get_mut(idx)
+            .get_mut(match color {
+                ManaColor::Red => 0,
+                ManaColor::Blue => 1,
+                ManaColor::Green => 2,
+                ManaColor::White => 3,
+                ManaColor::Black => 4,
+            })
             .map(|label| {
                 unsafe { label.assume_safe() }.set_text(count.to_string());
-            })
-            .unwrap();
+            });
+        // .unwrap();
     }
 }

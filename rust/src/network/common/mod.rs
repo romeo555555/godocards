@@ -53,7 +53,7 @@ pub enum Event {
     RemoveCard(CardId),
     CastCardOnTabel(CardId),
     BackCardOnHand(CardId),
-    ManaUpdate(Mana),
+    ManaUpdate(u64, ManaColor),
     //Attack
     //CaAddstCardSpale
     //AddCardOpponent
@@ -114,44 +114,67 @@ pub struct PlayerData {
 //                     character: "avatarmini1".to_owned(),
 //                 },
 //             },
-#[derive(Clone, Debug, DeJson, SerJson, DeBin, SerBin, PartialEq)]
-pub enum Mana {
-    Red(u64),
-    Blue(u64),
-    Green(u64),
-    Black(u64),
-    White(u64),
-}
 
 #[derive(Clone, Debug, DeJson, SerJson, DeBin, SerBin, PartialEq)]
+pub struct Mana {
+    pub(crate) count: u64,
+    pub(crate) mana_form: ManaForm,
+}
+#[derive(Clone, Debug, DeJson, SerJson, DeBin, SerBin, PartialEq)]
 pub enum ManaForm {
-    Once(Mana),
-    Two(Mana, Mana),
-    Three(Mana, Mana, Mana),
-    Four(Mana, Mana, Mana, Mana),
-    UnColor(u64),
+    Once(ManaColor),
+    Two([ManaColor; 2]),
+    Three([ManaColor; 3]),
+    Four([ManaColor; 4]),
+    Uncolor,
+}
+// struct ManaTuple()
+
+#[derive(Clone, Debug, DeJson, SerJson, DeBin, SerBin, PartialEq)]
+pub enum ManaColor {
+    Red,
+    Blue,
+    Green,
+    Black,
+    White,
 }
 
 #[derive(Clone, Debug, DeJson, SerJson, PartialEq, DeBin, SerBin)]
 pub struct CardStats {
     pub name: String,
     pub hash: HashCard,
-    pub cost: Vec<ManaForm>,
+    pub cost: Vec<Mana>,
     pub card_type: CardType,
     pub description: String,
 }
 #[derive(Clone, Debug, DeJson, SerJson, DeBin, SerBin, PartialEq)]
 pub struct Unit {
-    brute_force: u64,
-    intelligence: u64,
-    magical_potential: u64,
-    adaptability: u64,
-    mastery: u64,
+    pub(crate) brute_force: u64,
+    pub(crate) intelligence: u64,
+    pub(crate) magical_potential: u64,
+    pub(crate) adaptability: u64,
+    pub(crate) mastery: u64,
 
     // attack_type: AttackType, DamageType,
-    pub attack: u64,
-    pub healty: u64,
+    pub(crate) attack: u64,
+    pub(crate) healty: u64,
 }
+// impl IntoIterator for Unit {
+//     type Item = u64;
+//     type IntoIter = std::array::IntoIter<u64, 7>;
+
+//     fn into_iter(self) -> Self::IntoIter {
+//         std::array::IntoIter::new([
+//             self.brute_force,
+//             self.intelligence,
+//             self.magical_potential,
+//             self.adaptability,
+//             self.mastery,
+//             self.attack,
+//             self.healty,
+//         ])
+//     }
+// }
 #[derive(Clone, Debug, DeJson, SerJson, DeBin, SerBin, PartialEq)]
 pub struct Spell {
     // multiply_damage: u64, //type magic//tochnosty

@@ -9,10 +9,14 @@ pub struct Resources {
     // pub textures: HashMap<String, Ref<Texture>>,
     // players: HashMap<String, PlayerResources>,
     pub card_size: Vec2,
-    card_prefab: Option<Ref<PackedScene>>,
+    prefab_card: Option<Ref<PackedScene>>,
+    prefab_card_unit: Option<Ref<PackedScene>>,
+    prefab_card_spell: Option<Ref<PackedScene>>,
+    prefab_mana: Option<Ref<PackedScene>>,
     pub(crate) cards: HashMap<CardId, Card>, //cards on game
     pub(crate) bd_cards: HashMap<HashCard, CardStats>, //all game card stats
-    players: HashMap<u64, Ref<Control>>,
+    cards_view: HashMap<CardId, CardStatsView>, //maybe add type damage? and add texture color fon
+    players_node: HashMap<u64, Ref<Control>>,
     // player1: Option<Ref<Control>>,
     // player2: Option<Ref<Control>>,
 }
@@ -33,7 +37,10 @@ impl Resources {
         // }
         // self.textures = assets.get_all();
         // self.card_size = unsafe{load("tampmini".to_owned()).assume_unique()}.size();
-        self.card_prefab = load_scene("res://Card.tscn", |scene| Some(scene.claim()));
+        self.prefab_card = load_scene("res://Card.tscn", |scene| Some(scene.claim()));
+        self.prefab_card_unit = load_scene("res://Unit.tscn", |scene| Some(scene.claim()));
+        self.prefab_card_spell = load_scene("res://Spell.tscn", |scene| Some(scene.claim()));
+        self.prefab_mana = load_scene("res://Mana.tscn", |scene| Some(scene.claim()));
         self.card_size = vec2(150., 180.);
     }
     pub fn set_card_pos(&mut self, card_id: CardId, pos: Vec2) {
@@ -49,11 +56,14 @@ impl Resources {
         self.cards.get_mut(&card_id).expect("dfewf")
     }
 
-    pub fn flip_card(&mut self, card_id: CardId, hash_card: HashCard) {
+    pub fn flip_card(&mut self, owner: &Node, card_id: CardId, hash_card: HashCard) {
         let stats = self.bd_cards.get(&hash_card).unwrap().clone();
         let card = self.get_card(card_id);
-        card.node.queue_free();
-        // card.node.init
+        card.stats = Some(stats.clone());
+        let node = unsafe { card.node.assume_unique() };
+        let pos = node.position();
+        node.queue_free();
+        card.node = create::change_card_type(owner, self, pos, card_id, stats);
     }
 }
 impl Default for Resources {
@@ -61,10 +71,14 @@ impl Default for Resources {
         Self {
             // textures: HashMap::with_capacity(Self::ASSETS_COUNT),
             card_size: Vec2::ZERO,
-            card_prefab: None,
+            prefab_card: None,
+            prefab_card_unit: None,
+            prefab_card_spell: None,
+            prefab_mana: None,
             cards: HashMap::with_capacity(Self::START_CARD_COUNT),
             bd_cards: HashMap::with_capacity(5),
-            players: HashMap::with_capacity(4),
+            players_node: HashMap::with_capacity(4),
+            cards_view: HashMap::with_capacity(4),
             // player1: None,
             // player2: None,
         }
@@ -132,7 +146,7 @@ pub mod create {
     use gdnative::{api::TextureRect, prelude::*};
 
     pub fn card(owner: &Node, resources: &mut Resources, id: CardId) -> CardId {
-        if let Some(prefab) = resources.card_prefab.take() {
+        if let Some(prefab) = resources.prefab_card.take() {
             let card_obj = unsafe { prefab.assume_safe() };
             let card = card_obj
                 .instance(0)
@@ -146,7 +160,7 @@ pub mod create {
             owner.add_child(card, false);
             //name load json
             //load stats
-            resources.card_prefab.replace(card_obj.claim());
+            resources.prefab_card.replace(card_obj.claim());
             resources.cards.insert(
                 id,
                 Card {
@@ -157,8 +171,111 @@ pub mod create {
             );
             id
         } else {
-            panic!("Not found card_prefab")
+            panic!("Not found prefab_card")
         }
+    }
+    pub fn change_card_type(
+        owner: &Node,
+        resources: &mut Resources,
+        pos: Vec2,
+        card_id: CardId,
+        card_stats: CardStats,
+    ) -> Ref<Control> {
+        let (card_stats_view, card_node) = card_view(
+            match card_stats.card_type {
+                CardType::Unit(_) => {
+                    let prefab = resources.prefab_card_unit.take().unwrap();
+                    let card_obj = unsafe { prefab.assume_safe() };
+                    let card = card_obj
+                        .instance(0)
+                        .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
+                        .expect("Could not load player scene");
+                    card.set_global_position(pos, false);
+                    owner.add_child(card, false);
+                    //name load json
+                    //load stats
+
+                    resources.prefab_card_unit.replace(card_obj.claim());
+                    card
+                }
+                _ => {
+                    let prefab = resources.prefab_card_spell.take().unwrap();
+                    let card_obj = unsafe { prefab.assume_safe() };
+                    let card = card_obj
+                        .instance(0)
+                        .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
+                        .expect("Could not load player scene");
+                    card.set_global_position(pos, false);
+                    // let pos = unsafe { card.get_child(0).unwrap().assume_safe() }
+                    //     .cast::<TextureRect>()
+                    //     .unwrap()
+                    //     .size();
+                    owner.add_child(card, false);
+                    //name load json
+                    //load stats
+                    resources.prefab_card_spell.replace(card_obj.claim());
+                    card
+                }
+            },
+            // .claim(),
+            resources,
+            card_stats,
+        );
+        resources.cards_view.insert(card_id, card_stats_view);
+        card_node
+    }
+    fn card_view(
+        node: TRef<Control>,
+        resources: &mut Resources,
+        card_stats: CardStats,
+    ) -> (CardStatsView, Ref<Control>) {
+        (
+            CardStatsView {
+                name: node
+                    .get_node("Name")
+                    .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
+                    .map(|scene| {
+                        scene.set_text(card_stats.name.clone());
+                        scene
+                    })
+                    .expect("Couldn't load sprite texture")
+                    .claim(),
+                cost: node
+                    .get_node("Cost")
+                    .map(|scene| unsafe { scene.assume_safe() })
+                    .and_then(|scene| {
+                        let prefab = resources.prefab_mana.take().unwrap();
+                        let card_obj = unsafe { prefab.assume_safe() };
+                        let card = card_obj
+                            .instance(0)
+                            .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
+                            .expect("Could not load player scene");
+
+                        scene.add_child(card, false);
+                        resources.prefab_mana.replace(card_obj.claim());
+                        Some(
+                            card_stats
+                                .cost
+                                .into_iter()
+                                .map(|mana| ManaView::new(scene, mana))
+                                .collect(),
+                        )
+                    })
+                    .expect("efefefefe"),
+
+                stats: node
+                    .get_node("Stats")
+                    .map(|scene| match card_stats.card_type {
+                        CardType::Unit(unit) => {
+                            CardTypeView::Unit(UnitView::new(unsafe { scene.assume_safe() }, unit))
+                        }
+                        // CardType::Spell(spell) => SpellView{}
+                        _ => CardTypeView::Spell(SpellView {}),
+                    })
+                    .expect("Couldn't load sprite texture"),
+            },
+            node.claim(),
+        )
     }
 
     pub fn common_match(
@@ -221,7 +338,7 @@ pub mod create {
         start_cards.into_iter().for_each(|(card_id, hash_card)| {
             let player = players.get_mut(&client_id).unwrap();
             player.add_card_on_hand(create::card(owner, resources, card_id));
-            resources.flip_card(card_id, hash_card);
+            resources.flip_card(owner, card_id, hash_card);
         });
         opp_start_cards
             .into_iter()
@@ -232,31 +349,6 @@ pub mod create {
                 });
             });
         players
-
-        // HashMap::from([
-        //     (
-        //         player_remote.id,
-        //         player(
-        //             match_scene.get_child(0),
-        //             rect.up_split_side(),
-        //             player_remote,
-        //             card_size,
-        //             rect.down_split_side(),
-        //             rect.up_split_side(),
-        //         ),
-        //     ),
-        //     (
-        //         player_client.id,
-        //         player(
-        //             match_scene.get_child(1),
-        //             rect.down_split_side(),
-        //             player_client,
-        //             card_size,
-        //             rect.up_split_side(),
-        //             rect.down_split_side(),
-        //         ),
-        //     ),
-        // ])
     }
     // pub fn match_2x2(){}
     // pub fn match_two_faces(){}
@@ -307,9 +399,8 @@ pub mod create {
         // 2 - green
         // 3 - white
         // 4 - black
-        let nodes = vec!["Red", "Blue", "Green", "White", "Black"];
-        let labels = nodes
-            .iter()
+        let labels = vec!["Red", "Blue", "Green", "White", "Black"]
+            .into_iter()
             .map(|name| {
                 builds
                     .get_node(name)

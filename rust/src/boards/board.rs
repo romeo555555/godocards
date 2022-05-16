@@ -300,8 +300,11 @@ impl Board {
                 Event::BackCardOnHand(card_id) => {
                     // self.side_client.back_on_hand(card_id)
                 }
-                Event::ManaUpdate(mana) => {
-                    self.get_player(&player_id).mana_update(mana);
+                Event::ManaUpdate(count, color) => {
+                    self.get_player(&player_id).mana_update(count, color);
+                }
+                Event::FlipCard(card_id, hash_card) => {
+                    resources.flip_card(owner, card_id, hash_card);
                 }
                 _ => {}
             }

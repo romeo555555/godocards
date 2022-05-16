@@ -1,6 +1,7 @@
 use crate::*;
-use gdnative::api::Node2D;
-use gdnative::object::Ref;
+use gdnative::api::{CanvasItem, Label, Node, Node2D, TextureRect};
+use gdnative::core_types::Color;
+use gdnative::object::{Ref, TRef};
 use gdnative::prelude::Control;
 use nanoserde::{DeBin, DeJson, SerBin, SerJson};
 use std::hash::{Hash, Hasher};
@@ -16,6 +17,176 @@ impl Card {
     //     self.stats.hash.clone()
     // }
 }
+
+pub struct CardStatsView {
+    name: RefLabel,
+    cost: Vec<ManaView>,
+    stats: CardTypeView,
+}
+pub struct ManaView(RefLabel);
+impl ManaView {
+    pub fn new(scene: TRef<Node>, mana: Mana) -> Self {
+        let Mana { count, mana_form } = mana;
+        match mana_form {
+            ManaForm::Once(color) => Self::match_mana(scene, 1, color),
+            ManaForm::Two(colors) => [1, 2]
+                .into_iter()
+                .zip(colors)
+                .for_each(|(idx, color)| Self::match_mana(scene, *idx, color)),
+            ManaForm::Three(colors) => [1, 2, 3]
+                .into_iter()
+                .zip(colors)
+                .for_each(|(idx, color)| Self::match_mana(scene, *idx, color)),
+            ManaForm::Four(colors) => [1, 2, 4, 5]
+                .into_iter()
+                .zip(colors)
+                .for_each(|(idx, color)| Self::match_mana(scene, *idx, color)),
+            ManaForm::Uncolor => {
+                scene
+                    .get_child(6)
+                    .and_then(|scene| unsafe { scene.assume_safe() }.cast::<CanvasItem>())
+                    .map(|node| {
+                        node.set_visible(true);
+                    });
+            }
+        }
+
+        ManaView(
+            scene
+                .get_child(0)
+                .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
+                .map(|scene| {
+                    scene.set_text(count.to_string());
+                    scene
+                })
+                .expect("Couldn't load sprite texture")
+                .claim(),
+        )
+    }
+    fn match_mana(scene: TRef<Node>, idx: i64, color: ManaColor) {
+        scene
+            .get_child(idx)
+            .and_then(|scene| unsafe { scene.assume_safe() }.cast::<CanvasItem>())
+            .map(|node| {
+                node.set_visible(true);
+                node.set_modulate(match color {
+                    ManaColor::Red => Color::from_rgb(255., 0., 0.),
+                    ManaColor::Blue => Color::from_rgb(0., 255., 0.),
+                    ManaColor::Green => Color::from_rgb(0., 0., 255.),
+                    ManaColor::White => Color::from_rgb(0., 0., 0.),
+                    ManaColor::Black => Color::from_rgb(255., 255., 255.),
+                });
+            });
+    }
+}
+pub enum CardTypeView {
+    Unit(UnitView),
+    Spell(SpellView),
+    Build(BuildView),
+    Item(ItemView),
+    Zone(ZoneView),
+}
+impl CardTypeView {
+    pub fn update(card_type_view: CardTypeView) {
+        match card_type_view {
+            CardTypeView::Unit(view) => {}
+            CardTypeView::Spell(view) => {}
+            _ => {}
+        }
+    }
+}
+pub struct UnitView {
+    brute_force: RefLabel,
+    intelligence: RefLabel,
+    magical_potential: RefLabel,
+    adaptability: RefLabel,
+    mastery: RefLabel,
+
+    // attack_type: AttackType, DamageType,
+    attack: RefLabel,
+    healty: RefLabel,
+}
+impl UnitView {
+    pub fn new(scene: TRef<Node>, unit: Unit) -> Self {
+        Self {
+            brute_force: scene
+                .get_child(0)
+                .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
+                .map(|scene| {
+                    scene.set_text(unit.brute_force.to_string());
+                    scene
+                })
+                .expect("Couldn't load sprite texture")
+                .claim(),
+            intelligence: scene
+                .get_child(1)
+                .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
+                .map(|scene| {
+                    scene.set_text(unit.intelligence.to_string());
+                    scene
+                })
+                .expect("Couldn't load sprite texture")
+                .claim(),
+
+            magical_potential: scene
+                .get_child(2)
+                .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
+                .map(|scene| {
+                    scene.set_text(unit.magical_potential.to_string());
+                    scene
+                })
+                .expect("Couldn't load sprite texture")
+                .claim(),
+
+            adaptability: scene
+                .get_child(3)
+                .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
+                .map(|scene| {
+                    scene.set_text(unit.adaptability.to_string());
+                    scene
+                })
+                .expect("Couldn't load sprite texture")
+                .claim(),
+
+            mastery: scene
+                .get_child(4)
+                .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
+                .map(|scene| {
+                    scene.set_text(unit.mastery.to_string());
+                    scene
+                })
+                .expect("Couldn't load sprite texture")
+                .claim(),
+
+            attack: scene
+                .get_child(5)
+                .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
+                .map(|scene| {
+                    scene.set_text(unit.attack.to_string());
+                    scene
+                })
+                .expect("Couldn't load sprite texture")
+                .claim(),
+
+            healty: scene
+                .get_child(6)
+                .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
+                .map(|scene| {
+                    scene.set_text(unit.healty.to_string());
+                    scene
+                })
+                .expect("Couldn't load sprite texture")
+                .claim(),
+        }
+    }
+}
+
+pub struct SpellView {
+    // multiply_damage: u64, //type magic//tochnosty
+}
+pub struct BuildView {}
+pub struct ItemView {}
+pub struct ZoneView {}
 
 // #[derive(Clone, Debug, DeJson, SerJson, DeBin, SerBin)]
 // pub struct CardStats {

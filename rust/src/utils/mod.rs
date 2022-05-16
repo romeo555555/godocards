@@ -3,6 +3,12 @@ use gdnative::prelude::*;
 use std::fmt;
 
 // use crate::input::Sense;
+pub fn switch_visible(owner: &Node, idx: i64) {
+    let node = unsafe { owner.get_child(idx).expect("Missing node").assume_safe() }
+        .cast::<CanvasItem>()
+        .expect("Node should cast to CanvasItem");
+    node.set_visible(!node.is_visible());
+}
 
 pub type Vec2 = Vector2;
 
