@@ -67,9 +67,9 @@ impl Resources {
         self.config.card_size
     }
     pub fn card_new(&mut self, owner: &Node, id: CardId) -> CardId {
-        if let Some(prefab) = self.prefab_card.take() {
-            let card_obj = unsafe { prefab.assume_safe() };
-            let card = card_obj
+        if let Some(prefab_card) = self.prefab_card.take() {
+            let prefab_obj = unsafe { prefab_card.assume_safe() };
+            let card_node = prefab_obj
                 .instance(0)
                 .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
                 .expect("Could not load player scene");
@@ -78,15 +78,15 @@ impl Resources {
             //     .cast::<TextureRect>()
             //     .unwrap()
             //     .size();
-            owner.add_child(card, false);
+            owner.add_child(card_node, false);
             //name load json
             //load stats
-            self.prefab_card.replace(card_obj.claim());
+            self.prefab_card.replace(prefab_obj.claim());
             self.cards.insert(
                 id,
                 Card {
                     // id,
-                    node: card.claim(),
+                    node: card_node.claim(),
                     stats: None,
                 },
             );
@@ -95,7 +95,11 @@ impl Resources {
             panic!("Not found prefab_card")
         }
     }
-    fn card_new_view(&mut self, node: TRef<Control>, stats: CardStats) -> (CardStatsView, Card) {
+    fn card_new_view(
+        &mut self,
+        card_node: TRef<Control>,
+        stats: CardStats,
+    ) -> (CardStatsView, Card) {
         let CardStats {
             name,
             hash,
@@ -106,7 +110,7 @@ impl Resources {
 
         (
             CardStatsView {
-                name: node
+                name: card_node
                     .get_node("Name")
                     .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
                     .map(|scene| {
@@ -115,25 +119,25 @@ impl Resources {
                     })
                     .expect("Couldn't load sprite texture")
                     .claim(),
-                cost: node
+                cost: card_node
                     .get_node("Cost")
                     .map(|scene| unsafe { scene.assume_safe() })
                     .map(|scene| {
-                        let prefab = self.prefab_mana.take().unwrap();
-                        let card_obj = unsafe { prefab.assume_safe() };
-                        let card = card_obj
+                        let prefab_mana = self.prefab_mana.take().unwrap();
+                        let prefab_obj = unsafe { prefab_mana.assume_safe() };
+                        let mana_node = prefab_obj
                             .instance(0)
                             .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
                             .expect("Could not load player scene");
 
-                        scene.add_child(card, false);
-                        self.prefab_mana.replace(card_obj.claim());
+                        scene.add_child(mana_node, false);
+                        self.prefab_mana.replace(prefab_obj.claim());
                         cost.into_iter()
-                            .map(|mana| ManaView::new(scene, mana))
+                            .map(|mana| ManaView::new(mana_node, mana))
                             .collect()
                     })
                     .expect("efefefefe"),
-                stats: node
+                stats: card_node
                     .get_node("Stats")
                     .map(|scene| match card_type {
                         CardType::Unit(unit) => {
@@ -145,7 +149,7 @@ impl Resources {
                     .expect("Couldn't load sprite texture"),
             },
             Card {
-                node: node.claim(),
+                node: card_node.claim(),
                 stats: Some(stats),
             },
         )
@@ -155,42 +159,42 @@ impl Resources {
         let pos = card_node.global_position();
         card_node.queue_free();
 
-        let node = match stats.card_type {
+        let card_node = match stats.card_type {
             CardType::Unit(_) => {
-                let prefab = self.prefab_card_unit.take().unwrap();
-                let card_obj = unsafe { prefab.assume_safe() };
-                let card = card_obj
+                let prefab_card_unit = self.prefab_card_unit.take().unwrap();
+                let prefab_obj = unsafe { prefab_card_unit.assume_safe() };
+                let card_unit_node = prefab_obj
                     .instance(0)
                     .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
                     .expect("Could not load player scene");
-                card.set_global_position(pos, false);
-                owner.add_child(card, false);
+                card_unit_node.set_global_position(pos, false);
+                owner.add_child(card_unit_node, false);
                 //name load json
                 //load stats
 
-                self.prefab_card_unit.replace(card_obj.claim());
-                card
+                self.prefab_card_unit.replace(prefab_obj.claim());
+                card_unit_node
             }
             _ => {
-                let prefab = self.prefab_card_spell.take().unwrap();
-                let card_obj = unsafe { prefab.assume_safe() };
-                let card = card_obj
+                let prefab_card_spell = self.prefab_card_spell.take().unwrap();
+                let prefab_obj = unsafe { prefab_card_spell.assume_safe() };
+                let card_spell_node = prefab_obj
                     .instance(0)
                     .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
                     .expect("Could not load player scene");
-                card.set_global_position(pos, false);
+                card_spell_node.set_global_position(pos, false);
                 // let pos = unsafe { card.get_child(0).unwrap().assume_safe() }
                 //     .cast::<TextureRect>()
                 //     .unwrap()
                 //     .size();
-                owner.add_child(card, false);
+                owner.add_child(card_spell_node, false);
                 //name load json
                 //load stats
-                self.prefab_card_spell.replace(card_obj.claim());
-                card
+                self.prefab_card_spell.replace(prefab_obj.claim());
+                card_spell_node
             }
         };
-        let (card_stats_view, card) = self.card_new_view(node, stats);
+        let (card_stats_view, card) = self.card_new_view(card_node, stats);
         self.cards_view.insert(card_id, card_stats_view);
         self.cards.insert(card_id, card);
     }

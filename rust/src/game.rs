@@ -69,7 +69,12 @@ impl Game {
                 avatar: "avatar".to_owned(),
                 data: PlayerData {
                     name: "afkdsfv".to_owned(),
-                    vec_card: Vec::with_capacity(30),
+                    vec_card: vec![
+                        "unit1".to_owned(),
+                        "unit2".to_owned(),
+                        "unit3".to_owned(),
+                        "wizard".to_owned(),
+                    ],
                     character: "avatarmini1".to_owned(),
                 },
             },

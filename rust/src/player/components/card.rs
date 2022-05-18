@@ -20,24 +20,24 @@ impl Card {
 
 pub struct ManaView(RefLabel);
 impl ManaView {
-    pub fn new(scene: TRef<Node>, mana: Mana) -> Self {
+    pub fn new(mana_node: TRef<Control>, mana: Mana) -> Self {
         let Mana { count, mana_form } = mana;
         match mana_form {
-            ManaForm::Once(color) => Self::match_mana(scene, 1, color),
+            ManaForm::Once(color) => Self::match_mana(mana_node, 1, color),
             ManaForm::Two(colors) => [1, 2]
-                .into_iter()
+                .iter()
                 .zip(colors)
-                .for_each(|(idx, color)| Self::match_mana(scene, *idx, color)),
+                .for_each(|(idx, color)| Self::match_mana(mana_node, *idx, color)),
             ManaForm::Three(colors) => [1, 2, 3]
-                .into_iter()
+                .iter()
                 .zip(colors)
-                .for_each(|(idx, color)| Self::match_mana(scene, *idx, color)),
+                .for_each(|(idx, color)| Self::match_mana(mana_node, *idx, color)),
             ManaForm::Four(colors) => [1, 2, 4, 5]
-                .into_iter()
+                .iter()
                 .zip(colors)
-                .for_each(|(idx, color)| Self::match_mana(scene, *idx, color)),
+                .for_each(|(idx, color)| Self::match_mana(mana_node, *idx, color)),
             ManaForm::Uncolor => {
-                scene
+                mana_node
                     .get_child(6)
                     .and_then(|scene| unsafe { scene.assume_safe() }.cast::<CanvasItem>())
                     .map(|node| {
@@ -47,7 +47,7 @@ impl ManaView {
         }
 
         ManaView(
-            scene
+            mana_node
                 .get_child(0)
                 .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
                 .map(|scene| {
@@ -58,7 +58,7 @@ impl ManaView {
                 .claim(),
         )
     }
-    fn match_mana(scene: TRef<Node>, idx: i64, color: ManaColor) {
+    fn match_mana(scene: TRef<Control>, idx: i64, color: ManaColor) {
         scene
             .get_child(idx)
             .and_then(|scene| unsafe { scene.assume_safe() }.cast::<CanvasItem>())
@@ -102,9 +102,9 @@ pub struct UnitView {
     healty: RefLabel,
 }
 impl UnitView {
-    pub fn new(scene: TRef<Node>, unit: Unit) -> Self {
+    pub fn new(stats_node: TRef<Node>, unit: Unit) -> Self {
         Self {
-            brute_force: scene
+            brute_force: stats_node
                 .get_child(0)
                 .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
                 .map(|scene| {
@@ -113,7 +113,7 @@ impl UnitView {
                 })
                 .expect("Couldn't load sprite texture")
                 .claim(),
-            intelligence: scene
+            intelligence: stats_node
                 .get_child(1)
                 .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
                 .map(|scene| {
@@ -123,7 +123,7 @@ impl UnitView {
                 .expect("Couldn't load sprite texture")
                 .claim(),
 
-            magical_potential: scene
+            magical_potential: stats_node
                 .get_child(2)
                 .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
                 .map(|scene| {
@@ -133,7 +133,7 @@ impl UnitView {
                 .expect("Couldn't load sprite texture")
                 .claim(),
 
-            adaptability: scene
+            adaptability: stats_node
                 .get_child(3)
                 .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
                 .map(|scene| {
@@ -143,7 +143,7 @@ impl UnitView {
                 .expect("Couldn't load sprite texture")
                 .claim(),
 
-            mastery: scene
+            mastery: stats_node
                 .get_child(4)
                 .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
                 .map(|scene| {
@@ -153,7 +153,7 @@ impl UnitView {
                 .expect("Couldn't load sprite texture")
                 .claim(),
 
-            attack: scene
+            attack: stats_node
                 .get_child(5)
                 .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
                 .map(|scene| {
@@ -163,7 +163,7 @@ impl UnitView {
                 .expect("Couldn't load sprite texture")
                 .claim(),
 
-            healty: scene
+            healty: stats_node
                 .get_child(6)
                 .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
                 .map(|scene| {

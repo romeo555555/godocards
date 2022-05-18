@@ -15,19 +15,6 @@ margin_right = 18.0
 margin_bottom = 14.0
 text = "Name"
 
-[node name="Attack" type="Label" parent="."]
-margin_top = 165.0
-margin_right = 40.0
-margin_bottom = 179.0
-text = "0"
-
-[node name="Healty" type="Label" parent="."]
-margin_left = 135.0
-margin_top = 165.0
-margin_right = 175.0
-margin_bottom = 179.0
-text = "0"
-
 [node name="Cost" type="HBoxContainer" parent="."]
 margin_left = 80.0
 margin_right = 150.0
@@ -109,3 +96,17 @@ align = 1
 show_behind_parent = true
 position = Vector2( 12, 10 )
 texture = ExtResource( 2 )
+
+[node name="Attack" type="Label" parent="Stats"]
+margin_left = -75.0
+margin_top = 76.0
+margin_right = -35.0
+margin_bottom = 90.0
+text = "0"
+
+[node name="Healty" type="Label" parent="Stats"]
+margin_left = 60.0
+margin_top = 76.0
+margin_right = 100.0
+margin_bottom = 90.0
+text = "0"
