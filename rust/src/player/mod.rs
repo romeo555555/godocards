@@ -1,26 +1,51 @@
 use crate::*;
-use gdnative::api::Texture;
-use gdnative::object::Ref;
+use gdnative::api::{Label, Node, ResourceLoader, TextureRect};
+use gdnative::object::{Ref, TRef};
+use gdnative::prelude::Shared;
+use gdnative::{api::Texture, prelude::godot_print};
 use std::{cmp::Ordering, ops::Add};
 pub mod components;
 use components::*;
 use nanoserde::{DeBin, SerBin};
 
 pub struct Player {
-    pub(crate) player_id: PlayerId,
-    pub(crate) rect: Rect,
-    pub(crate) tabel: Tabel,
-    pub(crate) hand: Hand,
-    pub(crate) deck: Deck,
-    pub(crate) items: Items,
-    pub(crate) builds: Builds,
-    pub(crate) character: Character,
+    player_id: PlayerId,
+    rect: Rect,
+    tabel: Tabel,
+    hand: Hand,
+    deck: Deck,
+    items: Items,
+    builds: Builds,
+    character: Character,
     //avatar
-    pub(crate) healty: u64,
-    pub(crate) data: PlayerData,
+    healty: u64,
+    data: PlayerData,
 }
 impl Player {
     pub const CAPACITY_CARD_ON_HAND: usize = 8;
+    pub fn new(
+        player: Option<Ref<Node>>,
+        rect: Rect,
+        player_data: PlayerDataHandler,
+        card_size: Vec2,
+        tabel_rect: Rect,
+        hand_rect: Rect,
+    ) -> Player {
+        Player {
+            player_id: player_data.id.clone(),
+            rect,
+            healty: 100,
+            tabel: Tabel::new(tabel_rect, Player::CAPACITY_CARD_ON_HAND, card_size),
+            hand: Hand::new(hand_rect, Player::CAPACITY_CARD_ON_HAND, card_size),
+            deck: Deck::new(player, player_data.deck_name),
+            items: Items::new(player, player_data.items_name),
+            builds: Builds::new(player, player_data.builds_name),
+            character: Character::new(player, player_data.character_name),
+            // avatar:
+            data: player_data.data,
+        }
+    }
+
     pub fn get_name(&self) -> String {
         self.data.name.clone()
     }
@@ -143,7 +168,19 @@ pub struct Items {
     items: Vec<i64>,
 }
 impl Items {
-    pub fn new(rect: Rect, label_name: RefLabel, label_count: RefLabel) -> Self {
+    pub fn new(player: Option<Ref<Node>>, texture: String) -> Self {
+        let (items, rect) = player_component(player, "Items".to_owned(), texture);
+        let label_name = items
+            .get_child(0)
+            .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
+            .expect("Couldn't load sprite texture")
+            .claim();
+        let label_count = items
+            .get_child(0)
+            .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
+            .expect("Couldn't load sprite texture")
+            .claim();
+        godot_print!("Items create: {}", rect);
         Self {
             rect,
             label_name,
@@ -159,7 +196,19 @@ pub struct Character {
     label_healty: RefLabel,
 }
 impl Character {
-    pub fn new(rect: Rect, label_name: RefLabel, label_healty: RefLabel) -> Self {
+    pub fn new(player: Option<Ref<Node>>, texture: String) -> Self {
+        let (char, rect) = player_component(player, "Character".to_owned(), texture);
+        let label_name = char
+            .get_child(0)
+            .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
+            .expect("Couldn't load sprite texture")
+            .claim();
+        let label_healty = char
+            .get_child(0)
+            .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
+            .expect("Couldn't load sprite texture")
+            .claim();
+        godot_print!("Character create: {}", rect);
         Self {
             rect,
             label_name,
@@ -177,7 +226,19 @@ pub struct Deck {
 }
 
 impl Deck {
-    pub fn new(rect: Rect, label_card_deck: RefLabel, label_dead_deck: RefLabel) -> Self {
+    pub fn new(player: Option<Ref<Node>>, texture: String) -> Self {
+        let (deck, rect) = player_component(player, "Deck".to_owned(), texture);
+        let label_card_deck = deck
+            .get_child(0)
+            .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
+            .expect("Couldn't load sprite texture")
+            .claim();
+        let label_dead_deck = deck
+            .get_child(0)
+            .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
+            .expect("Couldn't load sprite texture")
+            .claim();
+        godot_print!("Deck create: {}", rect);
         Self {
             rect,
             label_card_deck,
@@ -193,7 +254,26 @@ pub struct Builds {
     labels: Vec<RefLabel>,
 }
 impl Builds {
-    pub fn new(rect: Rect, labels: Vec<RefLabel>) -> Self {
+    pub fn new(player: Option<Ref<Node>>, texture: String) -> Self {
+        let (builds, rect) = player_component(player, "Builds".to_owned(), texture);
+        //builds
+        // 0 - red
+        // 1 - blue
+        // 2 - green
+        // 3 - white
+        // 4 - black
+        let labels = vec!["Red", "Blue", "Green", "White", "Black"]
+            .into_iter()
+            .map(|name| {
+                builds
+                    .get_node(name)
+                    .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
+                    .expect("Couldn't load sprite texture")
+                    .claim()
+            })
+            .collect();
+        godot_print!("Builds create: {}", rect);
+
         Self { rect, labels }
     }
     pub fn update(&mut self, count: u64, color: ManaColor) {
@@ -211,3 +291,49 @@ impl Builds {
         // .unwrap();
     }
 }
+fn player_component<'a>(
+    player: Option<Ref<Node, Shared>>,
+    name: String,
+    texture: String,
+) -> (TRef<'a, TextureRect>, Rect) {
+    let scene = player
+        .and_then(|scene| unsafe { scene.assume_safe() }.get_node(name))
+        .and_then(|scene| unsafe { scene.assume_safe().cast::<TextureRect>() })
+        .map(|scene| {
+            scene.set_texture(
+                ResourceLoader::godot_singleton()
+                    .load(
+                        format!("res://assets/sprites/{}.png", texture),
+                        "Texture",
+                        false,
+                    )
+                    .and_then(|res| res.cast::<Texture>())
+                    .expect("Couldn't load sprite texture"),
+            );
+            scene
+        })
+        .expect("Couldn't load sprite texture");
+    let pos = scene.global_position();
+    let size = scene.size();
+    (scene, Rect::new(pos.x, pos.y, size.x, size.y))
+}
+// fn avatar( player: Option<Ref<Node>>, texture: String, pos: Vec2) -> Deck {
+//     let deck = player_component(player, "Avatar", texture);
+//     deck.set_position(pos, false);
+//     let label_card_count = deck
+//         .get_child(0)
+//         .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
+//         .expect("Couldn't load sprite texture")
+//         .claim();
+//     let label_dead_count = deck
+//         .get_child(0)
+//         .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
+//         .expect("Couldn't load sprite texture")
+//         .claim();
+//     let size = deck.size();
+//     Deck::new(
+//         Rect::new(pos.x, pos.x, size.x, size.y),
+//         label_card_count,
+//         label_dead_count,
+//     )
+// }

@@ -1,31 +1,27 @@
-use crate::game::GameSetting;
+use crate::game::Config;
 use crate::*;
 use gdnative::{api::TextureRect, prelude::*};
 use std::collections::HashMap;
 pub type RefLabel = Ref<Label>;
 
 pub struct Resources {
-    // pub prefabs: Ref<Node>,
     // pub textures: HashMap<String, Ref<Texture>>,
-    // players: HashMap<String, PlayerResources>,
-    pub card_size: Vec2,
     prefab_card: Option<Ref<PackedScene>>,
     prefab_card_unit: Option<Ref<PackedScene>>,
     prefab_card_spell: Option<Ref<PackedScene>>,
     prefab_mana: Option<Ref<PackedScene>>,
-    pub(crate) cards: HashMap<CardId, Card>, //cards on game
-    pub(crate) bd_cards: HashMap<HashCard, CardStats>, //all game card stats
+    pub(crate) bd_cards: HashMap<HashCard, CardStats>, // bd all game card stats
+    pub(crate) cards: HashMap<CardId, Card>,           //cards on current game
     cards_view: HashMap<CardId, CardStatsView>, //maybe add type damage? and add texture color fon
     players_node: HashMap<u64, Ref<Control>>,
-    // player1: Option<Ref<Control>>,
-    // player2: Option<Ref<Control>>,
+    config: Config,
 }
 impl Resources {
     pub const START_CARD_COUNT: usize = 30;
     // const ASSETS_COUNT: usize = 50;
     //TODO: Card_size
     //TODO: assets: Assets
-    pub fn load(&mut self) {
+    pub fn load_prefabs_and_config(&mut self, config: Config) {
         // let vec = vec!["Card", "Deck", "Build", "Item", "Avatar"];
         // for name in vec {
         //     self.prefabs.insert(
@@ -41,7 +37,8 @@ impl Resources {
         self.prefab_card_unit = load_scene("res://Unit.tscn", |scene| Some(scene.claim()));
         self.prefab_card_spell = load_scene("res://Spell.tscn", |scene| Some(scene.claim()));
         self.prefab_mana = load_scene("res://Mana.tscn", |scene| Some(scene.claim()));
-        self.card_size = vec2(150., 180.);
+        // self.card_size = vec2(150., 180.);
+        self.config = config;
     }
     pub fn set_card_pos(&mut self, card_id: CardId, pos: Vec2) {
         unsafe { self.get_card(card_id).node.assume_safe() }.set_global_position(pos, false);
@@ -57,20 +54,152 @@ impl Resources {
     }
 
     pub fn flip_card(&mut self, owner: &Node, card_id: CardId, hash_card: HashCard) {
-        let stats = self.bd_cards.get(&hash_card).unwrap().clone();
-        let card = self.get_card(card_id);
-        card.stats = Some(stats.clone());
-        let node = unsafe { card.node.assume_unique() };
-        let pos = node.position();
-        node.queue_free();
-        card.node = create::change_card_type(owner, self, pos, card_id, stats);
+        self.card_type_change(
+            owner,
+            card_id,
+            self.bd_cards.get(&hash_card).unwrap().clone(),
+        );
+    }
+    pub fn screen_rect(&self) -> Rect {
+        self.config.screen_rect
+    }
+    pub fn card_size(&self) -> Vec2 {
+        self.config.card_size
+    }
+    pub fn card_new(&mut self, owner: &Node, id: CardId) -> CardId {
+        if let Some(prefab) = self.prefab_card.take() {
+            let card_obj = unsafe { prefab.assume_safe() };
+            let card = card_obj
+                .instance(0)
+                .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
+                .expect("Could not load player scene");
+            // card.set_position(vec2(150., 180.) * vec2(hash_id as f32, hash_id as f32));
+            // let pos = unsafe { card.get_child(0).unwrap().assume_safe() }
+            //     .cast::<TextureRect>()
+            //     .unwrap()
+            //     .size();
+            owner.add_child(card, false);
+            //name load json
+            //load stats
+            self.prefab_card.replace(card_obj.claim());
+            self.cards.insert(
+                id,
+                Card {
+                    // id,
+                    node: card.claim(),
+                    stats: None,
+                },
+            );
+            id
+        } else {
+            panic!("Not found prefab_card")
+        }
+    }
+    fn card_new_view(&mut self, node: TRef<Control>, stats: CardStats) -> (CardStatsView, Card) {
+        let CardStats {
+            name,
+            hash,
+            cost,
+            card_type,
+            description,
+        } = stats.clone();
+
+        (
+            CardStatsView {
+                name: node
+                    .get_node("Name")
+                    .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
+                    .map(|scene| {
+                        scene.set_text(name);
+                        scene
+                    })
+                    .expect("Couldn't load sprite texture")
+                    .claim(),
+                cost: node
+                    .get_node("Cost")
+                    .map(|scene| unsafe { scene.assume_safe() })
+                    .map(|scene| {
+                        let prefab = self.prefab_mana.take().unwrap();
+                        let card_obj = unsafe { prefab.assume_safe() };
+                        let card = card_obj
+                            .instance(0)
+                            .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
+                            .expect("Could not load player scene");
+
+                        scene.add_child(card, false);
+                        self.prefab_mana.replace(card_obj.claim());
+                        cost.into_iter()
+                            .map(|mana| ManaView::new(scene, mana))
+                            .collect()
+                    })
+                    .expect("efefefefe"),
+                stats: node
+                    .get_node("Stats")
+                    .map(|scene| match card_type {
+                        CardType::Unit(unit) => {
+                            CardTypeView::Unit(UnitView::new(unsafe { scene.assume_safe() }, unit))
+                        }
+                        // CardType::Spell(spell) => SpellView{}
+                        _ => CardTypeView::Spell(SpellView {}),
+                    })
+                    .expect("Couldn't load sprite texture"),
+            },
+            Card {
+                node: node.claim(),
+                stats: Some(stats),
+            },
+        )
+    }
+    pub fn card_type_change(&mut self, owner: &Node, card_id: CardId, stats: CardStats) {
+        let card_node = unsafe { self.get_card(card_id).node.assume_unique() };
+        let pos = card_node.global_position();
+        card_node.queue_free();
+
+        let node = match stats.card_type {
+            CardType::Unit(_) => {
+                let prefab = self.prefab_card_unit.take().unwrap();
+                let card_obj = unsafe { prefab.assume_safe() };
+                let card = card_obj
+                    .instance(0)
+                    .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
+                    .expect("Could not load player scene");
+                card.set_global_position(pos, false);
+                owner.add_child(card, false);
+                //name load json
+                //load stats
+
+                self.prefab_card_unit.replace(card_obj.claim());
+                card
+            }
+            _ => {
+                let prefab = self.prefab_card_spell.take().unwrap();
+                let card_obj = unsafe { prefab.assume_safe() };
+                let card = card_obj
+                    .instance(0)
+                    .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
+                    .expect("Could not load player scene");
+                card.set_global_position(pos, false);
+                // let pos = unsafe { card.get_child(0).unwrap().assume_safe() }
+                //     .cast::<TextureRect>()
+                //     .unwrap()
+                //     .size();
+                owner.add_child(card, false);
+                //name load json
+                //load stats
+                self.prefab_card_spell.replace(card_obj.claim());
+                card
+            }
+        };
+        let (card_stats_view, card) = self.card_new_view(node, stats);
+        self.cards_view.insert(card_id, card_stats_view);
+        self.cards.insert(card_id, card);
     }
 }
 impl Default for Resources {
     fn default() -> Self {
         Self {
             // textures: HashMap::with_capacity(Self::ASSETS_COUNT),
-            card_size: Vec2::ZERO,
+            // card_size: vec2(150., 180.),
             prefab_card: None,
             prefab_card_unit: None,
             prefab_card_spell: None,
@@ -79,8 +208,7 @@ impl Default for Resources {
             bd_cards: HashMap::with_capacity(5),
             players_node: HashMap::with_capacity(4),
             cards_view: HashMap::with_capacity(4),
-            // player1: None,
-            // player2: None,
+            config: Config::default(),
         }
     }
 }
@@ -137,359 +265,11 @@ fn load(name: String) -> Ref<Texture> {
         .and_then(|res| res.cast::<Texture>())
         .expect("Couldn't load sprite texture")
 }
-
-pub mod create {
-    use super::components::*;
-    use crate::*;
-    use std::collections::HashMap;
-    // use card::Card;
-    use gdnative::{api::TextureRect, prelude::*};
-
-    pub fn card(owner: &Node, resources: &mut Resources, id: CardId) -> CardId {
-        if let Some(prefab) = resources.prefab_card.take() {
-            let card_obj = unsafe { prefab.assume_safe() };
-            let card = card_obj
-                .instance(0)
-                .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
-                .expect("Could not load player scene");
-            // card.set_position(vec2(150., 180.) * vec2(hash_id as f32, hash_id as f32));
-            // let pos = unsafe { card.get_child(0).unwrap().assume_safe() }
-            //     .cast::<TextureRect>()
-            //     .unwrap()
-            //     .size();
-            owner.add_child(card, false);
-            //name load json
-            //load stats
-            resources.prefab_card.replace(card_obj.claim());
-            resources.cards.insert(
-                id,
-                Card {
-                    id,
-                    node: card.claim(),
-                    stats: None,
-                },
-            );
-            id
-        } else {
-            panic!("Not found prefab_card")
-        }
-    }
-    pub fn change_card_type(
-        owner: &Node,
-        resources: &mut Resources,
-        pos: Vec2,
-        card_id: CardId,
-        card_stats: CardStats,
-    ) -> Ref<Control> {
-        let (card_stats_view, card_node) = card_view(
-            match card_stats.card_type {
-                CardType::Unit(_) => {
-                    let prefab = resources.prefab_card_unit.take().unwrap();
-                    let card_obj = unsafe { prefab.assume_safe() };
-                    let card = card_obj
-                        .instance(0)
-                        .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
-                        .expect("Could not load player scene");
-                    card.set_global_position(pos, false);
-                    owner.add_child(card, false);
-                    //name load json
-                    //load stats
-
-                    resources.prefab_card_unit.replace(card_obj.claim());
-                    card
-                }
-                _ => {
-                    let prefab = resources.prefab_card_spell.take().unwrap();
-                    let card_obj = unsafe { prefab.assume_safe() };
-                    let card = card_obj
-                        .instance(0)
-                        .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
-                        .expect("Could not load player scene");
-                    card.set_global_position(pos, false);
-                    // let pos = unsafe { card.get_child(0).unwrap().assume_safe() }
-                    //     .cast::<TextureRect>()
-                    //     .unwrap()
-                    //     .size();
-                    owner.add_child(card, false);
-                    //name load json
-                    //load stats
-                    resources.prefab_card_spell.replace(card_obj.claim());
-                    card
-                }
-            },
-            // .claim(),
-            resources,
-            card_stats,
-        );
-        resources.cards_view.insert(card_id, card_stats_view);
-        card_node
-    }
-    fn card_view(
-        node: TRef<Control>,
-        resources: &mut Resources,
-        card_stats: CardStats,
-    ) -> (CardStatsView, Ref<Control>) {
-        (
-            CardStatsView {
-                name: node
-                    .get_node("Name")
-                    .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Label>())
-                    .map(|scene| {
-                        scene.set_text(card_stats.name.clone());
-                        scene
-                    })
-                    .expect("Couldn't load sprite texture")
-                    .claim(),
-                cost: node
-                    .get_node("Cost")
-                    .map(|scene| unsafe { scene.assume_safe() })
-                    .and_then(|scene| {
-                        let prefab = resources.prefab_mana.take().unwrap();
-                        let card_obj = unsafe { prefab.assume_safe() };
-                        let card = card_obj
-                            .instance(0)
-                            .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
-                            .expect("Could not load player scene");
-
-                        scene.add_child(card, false);
-                        resources.prefab_mana.replace(card_obj.claim());
-                        Some(
-                            card_stats
-                                .cost
-                                .into_iter()
-                                .map(|mana| ManaView::new(scene, mana))
-                                .collect(),
-                        )
-                    })
-                    .expect("efefefefe"),
-
-                stats: node
-                    .get_node("Stats")
-                    .map(|scene| match card_stats.card_type {
-                        CardType::Unit(unit) => {
-                            CardTypeView::Unit(UnitView::new(unsafe { scene.assume_safe() }, unit))
-                        }
-                        // CardType::Spell(spell) => SpellView{}
-                        _ => CardTypeView::Spell(SpellView {}),
-                    })
-                    .expect("Couldn't load sprite texture"),
-            },
-            node.claim(),
-        )
-    }
-
-    pub fn common_match(
-        owner: &Node,
-        rect: Rect,
-        resources: &mut Resources,
-        // player_remote: PlayerDataHandler,
-        // player_client: PlayerDataHandler,
-        client_id: PlayerId,
-        players: HashMap<PlayerId, PlayerDataHandler>,
-        opp_start_cards: HashMap<PlayerId, Vec<CardId>>,
-        start_cards: Vec<(CardId, HashCard)>,
-        card_size: Vec2,
-    ) -> HashMap<PlayerId, Player> {
-        let match_scene = ResourceLoader::godot_singleton()
-            .load("res://Match.tscn", "PackedScene", false)
-            .and_then(|res| {
-                let res = unsafe { res.assume_thread_local() };
-                res.cast::<PackedScene>()
-            })
-            .and_then(|packed_scene| packed_scene.instance(PackedScene::GEN_EDIT_STATE_DISABLED))
-            .and_then(|scene| {
-                let scene = unsafe { scene.assume_safe() };
-                scene.cast::<Node2D>()
-            })
-            .expect("Could not load player scene");
-        owner.add_child(match_scene, false);
-
-        let mut players: HashMap<PlayerId, Player> = players
-            .into_iter()
-            .map(|(id, player_data)| {
-                if id == client_id {
-                    (
-                        id,
-                        player(
-                            match_scene.get_child(1),
-                            rect.down_split_side(),
-                            player_data,
-                            card_size,
-                            rect.up_split_side(),
-                            rect.down_split_side(),
-                        ),
-                    )
-                } else {
-                    (
-                        id,
-                        player(
-                            match_scene.get_child(0),
-                            rect.up_split_side(),
-                            player_data,
-                            card_size,
-                            rect.down_split_side(),
-                            rect.up_split_side(),
-                        ),
-                    )
-                }
-            })
-            .collect();
-
-        start_cards.into_iter().for_each(|(card_id, hash_card)| {
-            let player = players.get_mut(&client_id).unwrap();
-            player.add_card_on_hand(create::card(owner, resources, card_id));
-            resources.flip_card(owner, card_id, hash_card);
-        });
-        opp_start_cards
-            .into_iter()
-            .for_each(|(player_id, vec_card_id)| {
-                let player = players.get_mut(&player_id).unwrap();
-                vec_card_id.into_iter().for_each(|card_id| {
-                    player.add_card_on_hand(create::card(owner, resources, card_id));
-                });
-            });
-        players
-    }
-    // pub fn match_2x2(){}
-    // pub fn match_two_faces(){}
-    // pub fn player_two_faces(){}
-    fn player(
-        player: Option<Ref<Node>>,
-        rect: Rect,
-        player_data: PlayerDataHandler,
-        card_size: Vec2,
-        tabel_rect: Rect,
-        hand_rect: Rect,
-    ) -> Player {
-        Player {
-            player_id: player_data.id.clone(),
-            rect,
-            healty: 100,
-            tabel: Tabel::new(tabel_rect, Player::CAPACITY_CARD_ON_HAND, card_size),
-            hand: Hand::new(hand_rect, Player::CAPACITY_CARD_ON_HAND, card_size),
-            deck: deck(player, player_data.deck_name),
-            items: items(player, player_data.items_name),
-            builds: builds(player, player_data.builds_name),
-            character: chacracter(player, player_data.character_name),
-            // avatar:
-            data: player_data.data,
-        }
-    }
-
-    fn deck(player: Option<Ref<Node>>, texture: String) -> Deck {
-        let (deck, rect) = player_component(player, "Deck".to_owned(), texture);
-        let label_card_count = deck
-            .get_child(0)
-            .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
-            .expect("Couldn't load sprite texture")
-            .claim();
-        let label_dead_count = deck
-            .get_child(0)
-            .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
-            .expect("Couldn't load sprite texture")
-            .claim();
-        godot_print!("Deck create: {}", rect);
-        Deck::new(rect, label_card_count, label_dead_count)
-    }
-    fn builds(player: Option<Ref<Node>>, texture: String) -> Builds {
-        let (builds, rect) = player_component(player, "Builds".to_owned(), texture);
-        //builds
-        // 0 - red
-        // 1 - blue
-        // 2 - green
-        // 3 - white
-        // 4 - black
-        let labels = vec!["Red", "Blue", "Green", "White", "Black"]
-            .into_iter()
-            .map(|name| {
-                builds
-                    .get_node(name)
-                    .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
-                    .expect("Couldn't load sprite texture")
-                    .claim()
-            })
-            .collect();
-        godot_print!("Builds create: {}", rect);
-        Builds::new(rect, labels)
-    }
-    fn items(player: Option<Ref<Node>>, texture: String) -> Items {
-        let (items, rect) = player_component(player, "Items".to_owned(), texture);
-        let label_name = items
-            .get_child(0)
-            .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
-            .expect("Couldn't load sprite texture")
-            .claim();
-        let label_count = items
-            .get_child(0)
-            .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
-            .expect("Couldn't load sprite texture")
-            .claim();
-        godot_print!("Items create: {}", rect);
-        Items::new(rect, label_name, label_count)
-    }
-    fn chacracter(player: Option<Ref<Node>>, texture: String) -> Character {
-        let (char, rect) = player_component(player, "Character".to_owned(), texture);
-        let label_name = char
-            .get_child(0)
-            .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
-            .expect("Couldn't load sprite texture")
-            .claim();
-        let label_healty = char
-            .get_child(0)
-            .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
-            .expect("Couldn't load sprite texture")
-            .claim();
-        godot_print!("Character create: {}", rect);
-        Character::new(rect, label_name, label_healty)
-    }
-    // fn avatar( player: Option<Ref<Node>>, texture: String, pos: Vec2) -> Deck {
-    //     let deck = player_component(player, "Avatar", texture);
-    //     deck.set_position(pos, false);
-    //     let label_card_count = deck
-    //         .get_child(0)
-    //         .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
-    //         .expect("Couldn't load sprite texture")
-    //         .claim();
-    //     let label_dead_count = deck
-    //         .get_child(0)
-    //         .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
-    //         .expect("Couldn't load sprite texture")
-    //         .claim();
-    //     let size = deck.size();
-    //     Deck::new(
-    //         Rect::new(pos.x, pos.x, size.x, size.y),
-    //         label_card_count,
-    //         label_dead_count,
-    //     )
-    // }
-    fn player_component<'a>(
-        player: Option<Ref<Node, Shared>>,
-        name: String,
-        texture: String,
-    ) -> (TRef<'a, TextureRect>, Rect) {
-        let scene = player
-            .and_then(|scene| unsafe { scene.assume_safe() }.get_node(name))
-            .and_then(|scene| unsafe { scene.assume_safe().cast::<TextureRect>() })
-            .map(|scene| {
-                scene.set_texture(
-                    ResourceLoader::godot_singleton()
-                        .load(
-                            format!("res://assets/sprites/{}.png", texture),
-                            "Texture",
-                            false,
-                        )
-                        .and_then(|res| res.cast::<Texture>())
-                        .expect("Couldn't load sprite texture"),
-                );
-                scene
-            })
-            .expect("Couldn't load sprite texture");
-        let pos = scene.global_position();
-        let size = scene.size();
-        (scene, Rect::new(pos.x, pos.y, size.x, size.y))
-    }
+pub struct CardStatsView {
+    name: RefLabel,
+    cost: Vec<ManaView>,
+    stats: CardTypeView,
 }
-
 // pub struct Assets {
 //     card_textures: Vec<String>,
 //     deck_textures: Vec<String>,

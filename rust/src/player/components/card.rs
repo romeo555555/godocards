@@ -8,7 +8,7 @@ use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug)]
 pub struct Card {
-    pub id: CardId,
+    // pub id: CardId,
     pub node: Ref<Control>,
     pub stats: Option<CardStats>, // is_none == Flipped
 }
@@ -18,11 +18,6 @@ impl Card {
     // }
 }
 
-pub struct CardStatsView {
-    name: RefLabel,
-    cost: Vec<ManaView>,
-    stats: CardTypeView,
-}
 pub struct ManaView(RefLabel);
 impl ManaView {
     pub fn new(scene: TRef<Node>, mana: Mana) -> Self {

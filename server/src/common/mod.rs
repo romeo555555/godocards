@@ -193,8 +193,7 @@ pub enum CardType {
     Build(Build),
     Item(Item),
     Zone(Zone),
-}
-//TODO: delete this from common and switch to static data from bd
+} //TODO: delete this from common and switch to static data from bd
 pub struct CardStatsBuilder {}
 impl CardStatsBuilder {
     pub fn build(hash: HashCard, cost: Vec<Mana>, card_type: CardType) -> CardStats {

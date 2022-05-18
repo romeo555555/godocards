@@ -64,6 +64,7 @@ text = "0"
 align = 1
 
 [node name="Second" type="Sprite" parent="Stats/Second"]
+show_behind_parent = true
 position = Vector2( 12, 10 )
 texture = ExtResource( 2 )
 
@@ -77,6 +78,7 @@ text = "0"
 align = 1
 
 [node name="Third" type="Sprite" parent="Stats/Third"]
+show_behind_parent = true
 position = Vector2( 12, 10 )
 texture = ExtResource( 2 )
 
@@ -90,6 +92,7 @@ text = "0"
 align = 1
 
 [node name="Fourth" type="Sprite" parent="Stats/Fourth"]
+show_behind_parent = true
 position = Vector2( 12, 10 )
 texture = ExtResource( 2 )
 
@@ -103,5 +106,6 @@ text = "0"
 align = 1
 
 [node name="Fifth" type="Sprite" parent="Stats/Fifth"]
+show_behind_parent = true
 position = Vector2( 12, 10 )
 texture = ExtResource( 2 )
