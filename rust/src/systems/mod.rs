@@ -19,8 +19,7 @@ impl SelectCard {
     }
     pub fn send_msg(&mut self, event: Event) {
         godot_print!("send event : {:?}", event);
-        self.event
-            .push(Message::Message(Msg::build(self.client_id, event)));
+        self.event.push(Message::build(self.client_id, event));
     }
     pub fn pop_event(&mut self) -> Option<Message> {
         self.event.pop()

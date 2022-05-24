@@ -17,13 +17,13 @@ pub struct Match1x1 {
 impl Match1x1 {
     pub fn new(owner: &Node, ctx: &mut Resources, player_data_handler: PlayerDataHandler) -> Self {
         switch_visible(owner, 1i64);
-        let mut network = Network::new(player_data_handler);
+        let (network, mut match_info) = Network::new(player_data_handler);
 
-        let match_info = loop {
-            if let Message::MatchInfo(match_info) = network.event_queue.receive() {
-                break match_info;
-            }
-        };
+        // let match_info = loop {
+        //     if let Some(MatchInfo(match_info)) = match_info.try_receive() {
+        //         break match_info;
+        //     }
+        // };
 
         let MatchInfo {
             client_id,
@@ -31,8 +31,7 @@ impl Match1x1 {
             start_cards,
             opp_start_cards,
             bd_cards,
-        } = match_info;
-
+        } = match_info.receive();
         ctx.bd_cards.extend(bd_cards);
         let players = Self::new_view(owner, ctx, client_id, players, opp_start_cards, start_cards);
 
@@ -174,8 +173,8 @@ impl Match1x1 {
             godot_print!("Message Event");
             self.network.call(msg);
         }
-        if let Some(Message::Message(msg)) = self.network.event_queue.try_receive() {
-            let Msg { player_id, event } = msg.clone();
+        if let Some(msg) = self.network.event_queue.try_receive() {
+            let Message { player_id, event } = msg.clone();
             godot_print!("recive event : {:?}", event);
             match event {
                 Event::TakeCard(card_id) => {
@@ -208,7 +207,7 @@ impl Match1x1 {
                 }
                 _ => {}
             }
-            self.history.push(Message::Message(msg))
+            self.history.push(msg);
         }
     }
     pub fn get_player(&mut self, id: &PlayerId) -> &mut Player {

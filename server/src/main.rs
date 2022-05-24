@@ -85,14 +85,9 @@ impl GameMatch {
                 }
                 NetEvent::Message(endpoint, data) => {
                     if self.is_ready {
-                        if let Result::<Message, DeBinErr>::Ok(message) =
-                            DeBin::deserialize_bin(data)
-                        {
-                            // self.match_msg(msg);
+                        if let Result::<Message, DeBinErr>::Ok(msg) = DeBin::deserialize_bin(data) {
                             println!("take event");
-                            if let Message::Message(msg) = message {
-                                self.match_msg(msg);
-                            }
+                            self.match_msg(msg);
                         }
                     } else if let Result::<PlayerDataHandler, DeBinErr>::Ok(player) =
                         DeBin::deserialize_bin(data)
@@ -115,7 +110,7 @@ impl GameMatch {
             },
         });
     }
-    fn match_msg(&mut self, msg: Msg) {
+    fn match_msg(&mut self, msg: Message) {
         match msg.event {
             Event::TakeCard(card_id) => {
                 self.send_msg_for_all(msg.clone());
@@ -181,12 +176,12 @@ impl GameMatch {
         self.is_ready = true;
         println!("Match ready");
     }
-    fn send_msg(self, endpoint: Endpoint, msg: Msg) {
+    fn send_msg(self, endpoint: Endpoint, msg: Message) {
         self.handler
             .network()
             .send(endpoint, &SerBin::serialize_bin(&msg));
     }
-    fn send_msg_for_all(&mut self, msg: Msg) {
+    fn send_msg_for_all(&mut self, msg: Message) {
         self.subscriptions.keys().for_each(|endpoint| {
             self.handler
                 .network()

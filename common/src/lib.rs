@@ -29,17 +29,17 @@ pub struct Query {
     player_data: PlayerDataHandler,
 }
 
+// #[derive(Debug, Clone, SerBin, DeBin, PartialEq)]
+// pub enum Message {
+//     Message(Msg),
+//     MatchInfo(MatchInfo),
+// }
 #[derive(Debug, Clone, SerBin, DeBin, PartialEq)]
-pub enum Message {
-    Message(Msg),
-    MatchInfo(MatchInfo),
-}
-#[derive(Debug, Clone, SerBin, DeBin, PartialEq)]
-pub struct Msg {
+pub struct Message {
     pub player_id: PlayerId,
     pub event: Event,
 }
-impl Msg {
+impl Message {
     pub fn build(player_id: PlayerId, event: Event) -> Self {
         Self { player_id, event }
     }
@@ -117,8 +117,8 @@ pub struct PlayerData {
 
 #[derive(Clone, Debug, DeJson, SerJson, DeBin, SerBin, PartialEq)]
 pub struct Mana {
-    pub(crate) count: u64,
-    pub(crate) mana_form: ManaForm,
+    pub count: u64,
+    pub mana_form: ManaForm,
 }
 #[derive(Clone, Debug, DeJson, SerJson, DeBin, SerBin, PartialEq)]
 pub enum ManaForm {
@@ -149,15 +149,15 @@ pub struct CardStats {
 }
 #[derive(Clone, Debug, DeJson, SerJson, DeBin, SerBin, PartialEq)]
 pub struct Unit {
-    pub(crate) brute_force: u64,
-    pub(crate) intelligence: u64,
-    pub(crate) magical_potential: u64,
-    pub(crate) adaptability: u64,
-    pub(crate) mastery: u64,
+    pub brute_force: u64,
+    pub intelligence: u64,
+    pub magical_potential: u64,
+    pub adaptability: u64,
+    pub mastery: u64,
 
     // attack_type: AttackType, DamageType,
-    pub(crate) attack: u64,
-    pub(crate) healty: u64,
+    pub attack: u64,
+    pub healty: u64,
 }
 // impl IntoIterator for Unit {
 //     type Item = u64;

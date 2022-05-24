@@ -46,15 +46,24 @@ pub struct Network {
     _server: ServerProxy,
 }
 impl Network {
-    pub fn new(player_client: PlayerDataHandler) -> Self {
+    pub fn new(player_client: PlayerDataHandler) -> (Self, EventReceiver<MatchInfo>) {
         let event_queue = EventReceiver::default();
+        let match_reciver = EventReceiver::default();
 
         let sender = event_queue.sender().clone();
-        let server = ServerProxy::new(player_client, move |server_event| sender.send(server_event)); //?
-        Self {
-            event_queue,
-            _server: server,
-        }
+        let match_sender = match_reciver.sender().clone();
+        let server = ServerProxy::new(
+            player_client,
+            move |server_event| sender.send(server_event),
+            move |server_event| match_sender.send(server_event),
+        ); //?
+        (
+            Self {
+                event_queue,
+                _server: server,
+            },
+            match_reciver,
+        )
     }
     pub fn call(&mut self, msg: Message) {
         self._server.call(msg);
@@ -70,6 +79,7 @@ impl ServerProxy {
     pub fn new(
         player_client: PlayerDataHandler,
         event_callback: impl Fn(Message) + Send + 'static,
+        match_info_callback: impl Fn(MatchInfo) + Send + 'static,
     ) -> ServerProxy {
         let (handler, listener) = node::split();
 
@@ -110,15 +120,13 @@ impl ServerProxy {
                             if let Result::<Message, DeBinErr>::Ok(msg) =
                                 DeBin::deserialize_bin(data)
                             {
-                                if let Message::Message(_) = msg {
-                                    event_callback(msg);
-                                }
+                                event_callback(msg);
                             }
                         } else if let Result::<MatchInfo, DeBinErr>::Ok(match_info) =
                             DeBin::deserialize_bin(data)
                         {
                             match_create = true;
-                            event_callback(Message::MatchInfo(match_info));
+                            match_info_callback(match_info);
                         }
                     }
                     NetEvent::Disconnected(_) => {
