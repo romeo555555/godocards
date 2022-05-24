@@ -3,8 +3,6 @@ use crate::*;
 use conv::*;
 use gdnative::prelude::godot_print;
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::convert::From;
-
 pub struct Line {
     pub rect: Rect,
     pub indent: Vec2,
@@ -103,7 +101,7 @@ impl Line {
                 x += x_indent;
             }
 
-            godot_print!("!!!!!Rect hand:{}", self.rect);
+            // godot_print!("!!!!!Rect hand:{}", self.rect);
             self.event_pos_changed = false;
         }
     }

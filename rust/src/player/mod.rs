@@ -92,10 +92,10 @@ impl Player {
     // pub fn add_card_on_tabel(&mut self, card_id: CardId) {
     //     self.tabel.add_card(card_id);
     // }
-    // pub fn cast_on_tabel(&mut self, hand: &mut Line, tabel: &mut Line, card_id: u64) {
-    //     hand.remove_card(card_id);
-    //     tabel.front_add_card(card_id);
-    // }
+    pub fn cast_on_tabel(&mut self, card_id: CardId) {
+        self.hand.remove_card(card_id);
+        self.tabel.add_card(card_id);
+    }
     //remove_card_on_tabel
     pub fn add_card_on_hand(&mut self, card_id: CardId) {
         // hash_card:Option<HashCard>

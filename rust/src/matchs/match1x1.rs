@@ -69,6 +69,8 @@ impl Match1x1 {
             .expect("Could not load player scene");
         owner.add_child(match_scene, false);
         let rect = ctx.screen_rect();
+        let rect_up = rect.up_split_side();
+        let rect_down = rect.down_split_side();
         let card_size = ctx.card_size();
 
         let mut players: HashMap<PlayerId, Player> = players
@@ -82,8 +84,8 @@ impl Match1x1 {
                             rect.down_split_side(),
                             player_data,
                             card_size,
-                            rect.up_split_side(),
-                            rect.down_split_side(),
+                            rect_down.up_split_side(),
+                            rect_down.down_split_side(),
                         ),
                     )
                 } else {
@@ -94,8 +96,8 @@ impl Match1x1 {
                             rect.up_split_side(),
                             player_data,
                             card_size,
-                            rect.down_split_side(),
-                            rect.up_split_side(),
+                            rect_up.down_split_side(),
+                            rect_up.up_split_side(),
                         ),
                     )
                 }
@@ -138,7 +140,7 @@ impl Match1x1 {
 
         if let Some(player) = self.players.values().find(|player| player.contains(sense)) {
             let res = player.input_handler(sense);
-            // godot_print!("{:?}", res);
+            godot_print!("{:?}", res);
 
             if res.click_up || res.click_down {
                 if self.selected.is_dragging() {
@@ -173,8 +175,8 @@ impl Match1x1 {
             self.network.call(msg);
         }
         if let Some(Message::Message(msg)) = self.network.event_queue.try_receive() {
-            godot_print!("TRY Receiver");
             let Msg { player_id, event } = msg.clone();
+            godot_print!("recive event : {:?}", event);
             match event {
                 Event::TakeCard(card_id) => {
                     // self.player_client
@@ -190,9 +192,11 @@ impl Match1x1 {
                     self.get_player(&player_id)
                         .add_card_on_hand(ctx.card_new(owner, card_id));
                 }
-                Event::CastCardOnTabel(ref card_id) => {
-                    // self.side_client.cast_on_tabel(card_id)
-                } //match player
+                Event::CastCardOnTabel(card_id) => {
+                    // if dragged { drop without pos} else{ drop without target?}
+                    self.selected.drop();
+                    self.get_player(&player_id).cast_on_tabel(card_id);
+                }
                 Event::BackCardOnHand(card_id) => {
                     // self.side_client.back_on_hand(card_id)
                 }

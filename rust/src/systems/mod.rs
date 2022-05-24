@@ -18,6 +18,7 @@ impl SelectCard {
         }
     }
     pub fn send_msg(&mut self, event: Event) {
+        godot_print!("send event : {:?}", event);
         self.event
             .push(Message::Message(Msg::build(self.client_id, event)));
     }
@@ -41,9 +42,9 @@ impl SelectCard {
     pub fn get_dragging_id(&self) -> CardId {
         self.dragging.get_dragging_id()
     }
-    // pub fn drop(&mut self) {
-    //     self.dragging.drop(res, rendering);
-    // }
+    pub fn drop(&mut self) {
+        self.dragging.drop();
+    }
     pub fn drop_without_target(&mut self) {
         self.dragging.drop_without_target();
     }
@@ -144,8 +145,12 @@ impl Dragging {
             }
         }
     }
-    pub fn drop(&mut self, card: &mut Card) {
+    pub fn drop(&mut self) {
+        //card: &mut Card
         self.select_card = None;
+        self.cached_pos = None;
+        self.drop_back = false;
+        // self.select_card = None;
         // node.set_scale(vec2(1., 1.));
         // // z-index +1
 

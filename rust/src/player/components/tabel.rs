@@ -1,3 +1,5 @@
+use gdnative::prelude::godot_print;
+
 use super::line::*;
 use crate::*;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -7,6 +9,7 @@ pub struct Tabel {
 }
 impl Tabel {
     pub fn new(rect: Rect, capacity: usize, card_size: Vec2) -> Self {
+        godot_print!("!!!!!Rect Tabel:{}", rect);
         Self {
             line: Line {
                 rect,
@@ -38,6 +41,9 @@ impl Tabel {
     }
     pub fn add_card(&mut self, card_id: CardId) {
         self.line.front_add_card(card_id);
+    }
+    pub fn remove_card(&mut self, card_id: CardId) {
+        self.line.remove_card(card_id);
     }
     // pub fn create_card(&mut self, name: &'static str) {
     //     self.front_add_card(storage::get_mut::<Resources>().new_card(name));

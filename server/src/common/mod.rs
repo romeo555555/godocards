@@ -213,7 +213,12 @@ impl CardStatsBuilder {
                     "unit1".to_owned(),
                     vec![Mana {
                         count: rand::thread_rng().gen_range(0..=9),
-                        mana_form: ManaForm::Once(ManaColor::Red),
+                        mana_form: ManaForm::Four([
+                            ManaColor::Blue,
+                            ManaColor::Green,
+                            ManaColor::White,
+                            ManaColor::Black,
+                        ]),
                     }],
                     CardType::Unit(Unit {
                         brute_force: rand::thread_rng().gen_range(0..=9),
@@ -232,10 +237,16 @@ impl CardStatsBuilder {
                 "unit2".to_owned(),
                 CardStatsBuilder::build(
                     "unit2".to_owned(),
-                    vec![Mana {
-                        count: rand::thread_rng().gen_range(0..=9),
-                        mana_form: ManaForm::Two([ManaColor::Blue, ManaColor::Green]),
-                    }],
+                    vec![
+                        Mana {
+                            count: rand::thread_rng().gen_range(0..=9),
+                            mana_form: ManaForm::Two([ManaColor::Blue, ManaColor::Green]),
+                        },
+                        Mana {
+                            count: rand::thread_rng().gen_range(0..=9),
+                            mana_form: ManaForm::Once(ManaColor::Blue),
+                        },
+                    ],
                     CardType::Unit(Unit {
                         brute_force: rand::thread_rng().gen_range(0..=9),
                         intelligence: rand::thread_rng().gen_range(0..=9),
@@ -253,14 +264,20 @@ impl CardStatsBuilder {
                 "unit3".to_owned(),
                 CardStatsBuilder::build(
                     "unit3".to_owned(),
-                    vec![Mana {
-                        count: rand::thread_rng().gen_range(0..=9),
-                        mana_form: ManaForm::Three([
-                            ManaColor::Blue,
-                            ManaColor::Green,
-                            ManaColor::White,
-                        ]),
-                    }],
+                    vec![
+                        Mana {
+                            count: rand::thread_rng().gen_range(0..=9),
+                            mana_form: ManaForm::Once(ManaColor::Red),
+                        },
+                        Mana {
+                            count: rand::thread_rng().gen_range(0..=9),
+                            mana_form: ManaForm::Once(ManaColor::Green),
+                        },
+                        Mana {
+                            count: rand::thread_rng().gen_range(0..=9),
+                            mana_form: ManaForm::Two([ManaColor::Blue, ManaColor::Green]),
+                        },
+                    ],
                     CardType::Unit(Unit {
                         brute_force: rand::thread_rng().gen_range(0..=9),
                         intelligence: rand::thread_rng().gen_range(0..=9),
@@ -280,11 +297,10 @@ impl CardStatsBuilder {
                     "wizard".to_owned(),
                     vec![Mana {
                         count: rand::thread_rng().gen_range(0..=9),
-                        mana_form: ManaForm::Four([
+                        mana_form: ManaForm::Three([
                             ManaColor::Blue,
                             ManaColor::Green,
                             ManaColor::White,
-                            ManaColor::Black,
                         ]),
                     }],
                     CardType::Spell(Spell {}),

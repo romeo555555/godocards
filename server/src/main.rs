@@ -90,21 +90,7 @@ impl GameMatch {
                             // self.match_msg(msg);
                             println!("take event");
                             if let Message::Message(msg) = message {
-                                match msg.event {
-                                    Event::TakeCard(card_id) => {
-                                        self.subscriptions.keys().for_each(|endpoint| {
-                                            self.handler.network().send(
-                                                *endpoint,
-                                                &SerBin::serialize_bin(&Message::Message(
-                                                    msg.clone(),
-                                                )),
-                                            );
-                                        });
-                                        println!("send event");
-                                    }
-                                    Event::FlipCard(card_id, hash_card) => {}
-                                    _ => {}
-                                }
+                                self.match_msg(msg);
                             }
                         }
                     } else if let Result::<PlayerDataHandler, DeBinErr>::Ok(player) =
@@ -128,22 +114,21 @@ impl GameMatch {
             },
         });
     }
-    fn match_msg(&mut self, msg: Msg) -> Event {
+    fn match_msg(&mut self, msg: Msg) {
         match msg.event {
-            Event::ChangeState(state) => {}
             Event::TakeCard(card_id) => {
-                // if State::PlayerStep(player_id) = state{
-                //     if player_id == endpoint{
-
-                //     }
-                // }
+                self.send_msg_for_all(msg.clone());
             }
-            Event::CastCardOnTabel(card_id) => {}
+            Event::FlipCard(card_id, hash_card) => {}
+            Event::CastCardOnTabel(card_id) => {
+                self.send_msg_for_all(msg.clone());
+                self.send_msg_for_all(msg.clone());
+            }
+            Event::ChangeState(state) => {}
             Event::BackCardOnHand(card_id) => {}
             _ => {}
         }
         // msg.event
-        Event::TakeCard(0)
         // self.handler.network().send(endpoint, data);
     }
     fn add_player(&mut self, endpoint: Endpoint, player_handler: PlayerDataHandler) {
@@ -195,7 +180,7 @@ impl GameMatch {
         self.is_ready = true;
         println!("Match ready");
     }
-    fn send_msg(&mut self, endpoint: Endpoint, msg: Msg) {
+    fn send_msg(self, endpoint: Endpoint, msg: Msg) {
         self.handler
             .network()
             .send(endpoint, &SerBin::serialize_bin(&msg));

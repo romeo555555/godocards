@@ -1,5 +1,6 @@
 use crate::game::Config;
 use crate::*;
+use conv::*;
 use gdnative::{api::TextureRect, prelude::*};
 use std::collections::HashMap;
 pub type RefLabel = Ref<Label>;
@@ -123,17 +124,26 @@ impl Resources {
                     .get_node("Cost")
                     .map(|scene| unsafe { scene.assume_safe() })
                     .map(|scene| {
-                        let prefab_mana = self.prefab_mana.take().unwrap();
-                        let prefab_obj = unsafe { prefab_mana.assume_safe() };
-                        let mana_node = prefab_obj
-                            .instance(0)
-                            .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
-                            .expect("Could not load player scene");
-
-                        scene.add_child(mana_node, false);
-                        self.prefab_mana.replace(prefab_obj.claim());
                         cost.into_iter()
-                            .map(|mana| ManaView::new(mana_node, mana))
+                            .enumerate()
+                            .map(|(i, mana)| {
+                                let prefab_mana = self.prefab_mana.take().unwrap();
+                                let prefab_obj = unsafe { prefab_mana.assume_safe() };
+                                let mana_node = prefab_obj
+                                    .instance(0)
+                                    .and_then(|scene| {
+                                        unsafe { scene.assume_safe() }.cast::<Control>()
+                                    })
+                                    .expect("Could not load player scene");
+
+                                scene.add_child(mana_node, false);
+                                mana_node.set_position(
+                                    vec2(150. - (35. * f32::value_from(i + 1).unwrap()), 0.),
+                                    false,
+                                );
+                                self.prefab_mana.replace(prefab_obj.claim());
+                                ManaView::new(mana_node, mana)
+                            })
                             .collect()
                     })
                     .expect("efefefefe"),

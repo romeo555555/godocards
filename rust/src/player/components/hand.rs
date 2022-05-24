@@ -1,3 +1,5 @@
+use gdnative::prelude::godot_print;
+
 use super::line::*;
 use crate::*;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -7,6 +9,7 @@ pub struct Hand {
 }
 impl Hand {
     pub fn new(rect: Rect, capacity: usize, card_size: Vec2) -> Self {
+        godot_print!("!!!!!Rect Hand:{}", rect);
         Self {
             line: Line {
                 rect,
@@ -29,12 +32,19 @@ impl Hand {
     pub fn add_card(&mut self, card_id: CardId) {
         self.line.front_add_card(card_id);
     }
-
+    pub fn remove_card(&mut self, card_id: CardId) {
+        self.line.remove_card(card_id);
+    }
+    pub fn swap_card(&mut self, origin_draw_id: u64, target_card_id: u64) {
+        self.line.event_pos_changed = true;
+        if let Some(target_draw_id) = self.line.find_id(target_card_id) {
+            if let Some(origin_draw_id) = self.line.find_id(origin_draw_id) {
+                self.line.draw_query.swap(origin_draw_id, target_draw_id);
+            }
+        }
+    }
     // pub fn create_card(&mut self, name: &'static str) {
     //     self.front_add_card(storage::get_mut::<Resources>().new_card(name));
-    // }
-    // pub fn add_card(&mut self, card_id: u64) {
-    //     self.front_add_card(card_id);
     // }
     // pub fn front_add_card(&mut self, card_id: u64) {
     //     self.event_pos_changed = true;
@@ -44,21 +54,7 @@ impl Hand {
     //     self.event_pos_changed = true;
     //     self.draw_query.push_back(card_id);
     // }
-    // pub fn remove_card(&mut self, card_id: u64) {
-    //     self.event_pos_changed = true;
-    //     let i = self
-    //         .find_id(card_id)
-    //         .expect("Card dont can remove? not found");
-    //     self.draw_query.remove(i);
-    // }
-    pub fn swap_card(&mut self, origin_draw_id: u64, target_card_id: u64) {
-        self.line.event_pos_changed = true;
-        if let Some(target_draw_id) = self.line.find_id(target_card_id) {
-            if let Some(origin_draw_id) = self.line.find_id(origin_draw_id) {
-                self.line.draw_query.swap(origin_draw_id, target_draw_id);
-            }
-        }
-    }
+
     // // pub fn query_hand(&mut self, ctx: &mut Rendering, cost: u64) {
     // //     for id in self.draw_query.iter() {
     // //         ctx.query_hand(*id, cost);

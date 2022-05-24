@@ -75,19 +75,19 @@ impl Response {
     }
     pub fn match_drop(self, ctx: &mut Resources, selected: &mut SelectCard) {
         match self.item {
-            //ctx.get_dragging_id()
-            // ResponseType::TabelCard(_) | ResponseType::Tabel => {
-            //     //cast to tabel
-            //     // let card_cost = rendering.get_card_cost(fit_card_id);
-            //     //                     if self.side_client.player.try_pay_mana(card_cost) {
-            //     //                         self.queue_command.push(
-            //     //                             CommandBuilder::default().line(LineType::Hand).build(
-            //     //                                 PlayerType::Client,
-            //     //                                 Event::cast_on_tabel(fit_card_id),
-            //     //                             ),
-            //     //                         );
-            //     //                         rendering.drop();
-            //     //                     }
+            ResponseType::TabelCard(_) | ResponseType::Tabel => {
+                //cast to tabel
+                // let card_cost = rendering.get_card_cost(fit_card_id);
+                //                     if self.side_client.player.try_pay_mana(card_cost) {
+                //                         self.queue_command.push(
+                //                             CommandBuilder::default().line(LineType::Hand).build(
+                //                                 PlayerType::Client,
+                //                                 Event::cast_on_tabel(fit_card_id),
+                //                             ),
+                //                         );
+                //                         rendering.drop();
+                selected.send_msg(Event::CastCardOnTabel(selected.get_dragging_id()));
+            }
 
             //     // LineType::Tabel => {
             //     //                 let card_cost = rendering.get_card_cost(fit_card_id);
