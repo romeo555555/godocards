@@ -1,4 +1,4 @@
 [workspace]
-exclude = ["godot", "server"]
+exclude = ["godot"]
 #"server/src/common_gdcs"
-members = ["rust"]
+members = ["rust", "server", "common"]

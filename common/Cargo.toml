@@ -1,10 +1,10 @@
 [package]
-name = "server"
+name = "common"
 version = "0.1.0"
 edition = "2021"
 
-# [workspace]
-# members = ["common_gdc"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [dependencies]
 conv = "0.3.3"
 nanoserde = "0.1.29"
@@ -12,5 +12,3 @@ bitfield = "0.13.2"
 base64 = "0.13.0"
 message-io = "0.14.5"
 rand = "0.8.5"
-#common_gdc = { path = "/home/roman7662/game/godocards/common_gdc/" }
-common = { path = "../common" }

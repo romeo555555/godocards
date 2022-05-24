@@ -1,5 +1,5 @@
-use crate::*;
 use nanoserde::{DeBin, DeJson, SerBin, SerJson};
+use rand::Rng;
 use std::collections::HashMap;
 
 //It's the same file with in server
@@ -192,4 +192,119 @@ pub enum CardType {
     Build(Build),
     Item(Item),
     Zone(Zone),
+} //TODO: delete this from common and switch to static data from bd
+pub struct CardStatsBuilder {}
+impl CardStatsBuilder {
+    pub fn build(hash: HashCard, cost: Vec<Mana>, card_type: CardType) -> CardStats {
+        CardStats {
+            name: hash.clone(),
+            description: hash.clone(),
+            hash,
+            cost,
+            card_type,
+        }
+    }
+    pub fn new_pool() -> Vec<(HashCard, CardStats)> {
+        vec![
+            (
+                "unit1".to_owned(),
+                CardStatsBuilder::build(
+                    "unit1".to_owned(),
+                    vec![Mana {
+                        count: rand::thread_rng().gen_range(0..=9),
+                        mana_form: ManaForm::Four([
+                            ManaColor::Blue,
+                            ManaColor::Green,
+                            ManaColor::White,
+                            ManaColor::Black,
+                        ]),
+                    }],
+                    CardType::Unit(Unit {
+                        brute_force: rand::thread_rng().gen_range(0..=9),
+                        intelligence: rand::thread_rng().gen_range(0..=9),
+                        magical_potential: rand::thread_rng().gen_range(0..=9),
+                        adaptability: rand::thread_rng().gen_range(0..=9),
+                        mastery: rand::thread_rng().gen_range(0..=9),
+
+                        // attack_type: AttackType, DamageType,
+                        attack: rand::thread_rng().gen_range(0..=9),
+                        healty: rand::thread_rng().gen_range(0..=9),
+                    }),
+                ),
+            ),
+            (
+                "unit2".to_owned(),
+                CardStatsBuilder::build(
+                    "unit2".to_owned(),
+                    vec![
+                        Mana {
+                            count: rand::thread_rng().gen_range(0..=9),
+                            mana_form: ManaForm::Two([ManaColor::Blue, ManaColor::Green]),
+                        },
+                        Mana {
+                            count: rand::thread_rng().gen_range(0..=9),
+                            mana_form: ManaForm::Once(ManaColor::Blue),
+                        },
+                    ],
+                    CardType::Unit(Unit {
+                        brute_force: rand::thread_rng().gen_range(0..=9),
+                        intelligence: rand::thread_rng().gen_range(0..=9),
+                        magical_potential: rand::thread_rng().gen_range(0..=9),
+                        adaptability: rand::thread_rng().gen_range(0..=9),
+                        mastery: rand::thread_rng().gen_range(0..=9),
+
+                        // attack_type: AttackType, DamageType,
+                        attack: rand::thread_rng().gen_range(0..=9),
+                        healty: rand::thread_rng().gen_range(0..=9),
+                    }),
+                ),
+            ),
+            (
+                "unit3".to_owned(),
+                CardStatsBuilder::build(
+                    "unit3".to_owned(),
+                    vec![
+                        Mana {
+                            count: rand::thread_rng().gen_range(0..=9),
+                            mana_form: ManaForm::Once(ManaColor::Red),
+                        },
+                        Mana {
+                            count: rand::thread_rng().gen_range(0..=9),
+                            mana_form: ManaForm::Once(ManaColor::Green),
+                        },
+                        Mana {
+                            count: rand::thread_rng().gen_range(0..=9),
+                            mana_form: ManaForm::Two([ManaColor::Blue, ManaColor::Green]),
+                        },
+                    ],
+                    CardType::Unit(Unit {
+                        brute_force: rand::thread_rng().gen_range(0..=9),
+                        intelligence: rand::thread_rng().gen_range(0..=9),
+                        magical_potential: rand::thread_rng().gen_range(0..=9),
+                        adaptability: rand::thread_rng().gen_range(0..=9),
+                        mastery: rand::thread_rng().gen_range(0..=9),
+
+                        // attack_type: AttackType, DamageType,
+                        attack: rand::thread_rng().gen_range(0..=9),
+                        healty: rand::thread_rng().gen_range(0..=9),
+                    }),
+                ),
+            ),
+            (
+                "wizard".to_owned(),
+                CardStatsBuilder::build(
+                    "wizard".to_owned(),
+                    vec![Mana {
+                        count: rand::thread_rng().gen_range(0..=9),
+                        mana_form: ManaForm::Three([
+                            ManaColor::Blue,
+                            ManaColor::Green,
+                            ManaColor::White,
+                        ]),
+                    }],
+                    CardType::Spell(Spell {}),
+                ),
+            ),
+        ]
+    }
 }

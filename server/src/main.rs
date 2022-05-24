@@ -1,12 +1,13 @@
 use board::*;
 use card::*;
-use common::CardId;
+// use common::CardId;
 use mana::*;
 mod board;
 mod card;
-mod common;
+// mod common;
 mod mana;
 use common::*;
+extern crate common;
 use message_io::network::{Endpoint, NetEvent, Transport};
 use message_io::node::{self, NodeEvent, NodeHandler, NodeListener};
 use nanoserde::{DeBin, DeBinErr, SerBin};
@@ -122,7 +123,7 @@ impl GameMatch {
             Event::FlipCard(card_id, hash_card) => {}
             Event::CastCardOnTabel(card_id) => {
                 self.send_msg_for_all(msg.clone());
-                self.send_msg_for_all(msg.clone());
+                // self.send_msg_for_all(Msg::build(msg.player_id, Event::FlipCard(card_id)));
             }
             Event::ChangeState(state) => {}
             Event::BackCardOnHand(card_id) => {}

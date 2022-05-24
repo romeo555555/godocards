@@ -15,4 +15,4 @@ nanoserde = "0.1.29"
 bitfield = "0.13.2"
 base64 = "0.13.0"
 message-io = "0.14.5"
-# common = { path = "/home/roman7662/game/godocards/server/src/common/" }
+common = { path = "../common" }

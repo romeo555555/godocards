@@ -11,7 +11,7 @@ use nanoserde::{DeBin, DeBinErr, SerBin};
 use std::collections::{HashMap, HashSet};
 use std::result;
 use std::time::Duration;
-pub mod common;
+extern crate common;
 // pub mod event;
 pub use common::*;
 // pub use common::*;
