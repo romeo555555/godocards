@@ -9,7 +9,7 @@ use components::*;
 use nanoserde::{DeBin, SerBin};
 
 pub struct Player {
-    player_id: PlayerId,
+    // player_id: PlayerId,
     rect: Rect,
     tabel: Tabel,
     hand: Hand,
@@ -32,7 +32,7 @@ impl Player {
         hand_rect: Rect,
     ) -> Player {
         Player {
-            player_id: player_data.id.clone(),
+            // player_id: player_data.id.clone(),
             rect,
             healty: 100,
             tabel: Tabel::new(tabel_rect, Player::CAPACITY_CARD_ON_HAND, card_size),
@@ -55,17 +55,7 @@ impl Player {
     pub fn contains(&self, sense: Sense) -> bool {
         sense.contains_rect(&self.rect)
     }
-    pub fn input_handler(&self, sense: Sense) -> Response {
-        let click_up = sense.click_up;
-        let click_down = sense.click_down;
-        Response::new(
-            self.components_contains(sense),
-            self.player_id,
-            click_up,
-            click_down,
-        )
-    }
-    fn components_contains(&self, sense: Sense) -> ResponseType {
+    pub fn contains_child(&self, sense: Sense) -> ResponseType {
         // if match self.player_type {
         //     PlayerType::Client => sense.mouse_x > self.rect.center_x,
         //     // PlayerType::Remote => sense.mouse_x < self.rect.center_x,

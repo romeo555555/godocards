@@ -23,17 +23,7 @@ pub enum MatchType {
     TwoFaces,
     Match2x2,
 }
-#[derive(Debug, Clone, SerBin, DeBin, PartialEq)]
-pub struct Query {
-    match_type: MatchType,
-    player_data: PlayerDataHandler,
-}
 
-// #[derive(Debug, Clone, SerBin, DeBin, PartialEq)]
-// pub enum Message {
-//     Message(Msg),
-//     MatchInfo(MatchInfo),
-// }
 #[derive(Debug, Clone, SerBin, DeBin, PartialEq)]
 pub struct Message {
     pub player_id: PlayerId,
@@ -88,33 +78,6 @@ pub struct PlayerData {
     pub vec_card: Vec<HashCard>,
 }
 
-// PlayerDataHandler {
-//                 character_name: "avatarmini".to_owned(),
-//                 deck_name: "deck".to_owned(),
-//                 items_name: "items".to_owned(),
-//                 builds_name: "builds".to_owned(),
-//                 avatar: "avatar".to_owned(),
-//                 data: PlayerData {
-//                     name: "klvgjrv".to_owned(),
-//                     vec_card: Vec::with_capacity(30),
-//                     player_type: PlayerType::Remote,
-//                     character: "avatarmini".to_owned(),
-//                 },
-//             },
-//             PlayerDataHandler {
-//                 character_name: "avatarmini1".to_owned(),
-//                 deck_name: "deck".to_owned(),
-//                 items_name: "items".to_owned(),
-//                 builds_name: "builds".to_owned(),
-//                 avatar: "avatar".to_owned(),
-//                 data: PlayerData {
-//                     name: "afkdsfv".to_owned(),
-//                     vec_card: Vec::with_capacity(30),
-//                     player_type: PlayerType::Client,
-//                     character: "avatarmini1".to_owned(),
-//                 },
-//             },
-
 #[derive(Clone, Debug, DeJson, SerJson, DeBin, SerBin, PartialEq)]
 pub struct Mana {
     pub count: u64,
@@ -128,8 +91,6 @@ pub enum ManaForm {
     Four([ManaColor; 4]),
     Uncolor,
 }
-// struct ManaTuple()
-
 #[derive(Clone, Debug, DeJson, SerJson, DeBin, SerBin, PartialEq)]
 pub enum ManaColor {
     Red,

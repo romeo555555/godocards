@@ -137,8 +137,17 @@ impl Match1x1 {
         // }
         // .input_handler(sense);
 
-        if let Some(player) = self.players.values().find(|player| player.contains(sense)) {
-            let res = player.input_handler(sense);
+        if let Some((player_id, player)) = self
+            .players
+            .iter()
+            .find(|id_and_player| id_and_player.1.contains(sense))
+        {
+            let res = Response::new(
+                player.contains_child(sense),
+                *player_id,
+                sense.click_up,
+                sense.click_down,
+            );
             godot_print!("{:?}", res);
 
             if res.click_up || res.click_down {

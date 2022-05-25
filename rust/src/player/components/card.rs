@@ -37,12 +37,12 @@ impl ManaView {
                 .zip(colors)
                 .for_each(|(idx, color)| Self::match_mana(mana_node, *idx, color)),
             ManaForm::Uncolor => {
-                mana_node
+                if let Some(node) = mana_node
                     .get_child(6)
                     .and_then(|scene| unsafe { scene.assume_safe() }.cast::<CanvasItem>())
-                    .map(|node| {
-                        node.set_visible(true);
-                    });
+                {
+                    node.set_visible(true);
+                }
             }
         }
 
@@ -59,19 +59,19 @@ impl ManaView {
         )
     }
     fn match_mana(scene: TRef<Control>, idx: i64, color: ManaColor) {
-        scene
+        if let Some(node) = scene
             .get_child(idx)
             .and_then(|scene| unsafe { scene.assume_safe() }.cast::<CanvasItem>())
-            .map(|node| {
-                node.set_visible(true);
-                node.set_modulate(match color {
-                    ManaColor::Red => Color::from_rgb(255., 0., 0.),
-                    ManaColor::Blue => Color::from_rgb(0., 255., 0.),
-                    ManaColor::Green => Color::from_rgb(0., 0., 255.),
-                    ManaColor::White => Color::from_rgb(0., 0., 0.),
-                    ManaColor::Black => Color::from_rgb(255., 255., 255.),
-                });
+        {
+            node.set_visible(true);
+            node.set_modulate(match color {
+                ManaColor::Red => Color::from_rgb(255., 0., 0.),
+                ManaColor::Blue => Color::from_rgb(0., 255., 0.),
+                ManaColor::Green => Color::from_rgb(0., 0., 255.),
+                ManaColor::White => Color::from_rgb(0., 0., 0.),
+                ManaColor::Black => Color::from_rgb(255., 255., 255.),
             });
+        }
     }
 }
 pub enum CardTypeView {
