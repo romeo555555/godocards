@@ -32,18 +32,20 @@ pub fn main() {
 struct GameMatch {
     // config: Config,
     network: Network,
+    bd_cards: HashMap<HashCard, CardStats>,
     state: State,
-    cards: CardsMap,
     players: HashMap<PlayerId, Player>,
+    cards: HashMap<CardId, Card>,
     is_ready: bool,
 }
 impl Default for GameMatch {
     fn default() -> Self {
         Self {
             network: Network::new(),
+            bd_cards: CardStatsBuilder::new_pool().into_iter().collect(),
             state: State::None,
             players: HashMap::with_capacity(2),
-            cards: CardsMap::new(),
+            cards: HashMap::with_capacity(40),
             is_ready: false,
         }
     }
@@ -106,13 +108,24 @@ impl GameMatch {
     }
     fn add_player(&mut self, endpoint: Endpoint, player_handler: PlayerDataHandler) {
         self.players.insert(
-            self.network.get_sub(endpoint),
+            self.network.get_sub_id(endpoint),
             Player::new(endpoint, player_handler),
         );
 
         if self.players.len() == GameMatch::NEEDED_PLAYER_FOR_START {
             self.create_match();
         }
+    }
+    fn add_card(&mut self, hash_card: HashCard) -> CardId {
+        let card_id = self.network.get_card_id();
+        self.cards.insert(
+            card_id,
+            Card {
+                id: card_id,
+                stats: Some(self.bd_cards.get_mut(&hash_card).unwrap().clone()),
+            },
+        );
+        card_id
     }
     fn create_match(&mut self) {
         let map: HashMap<PlayerId, PlayerDataHandler> = self
@@ -128,12 +141,25 @@ impl GameMatch {
             let mut vec = Vec::with_capacity(3);
             for _ in 0..3 {
                 let hash_card = player.get_random_card_hash();
-                let card_id = self.cards.add_card(hash_card.clone());
+                let card_id = self.network.get_card_id();
+
                 player.add_card_hand(card_id);
                 vec.push((card_id, hash_card));
             }
             init_card.insert(*player_id, vec);
         }
+        init_card.iter().for_each(|(_, vec)| {
+            vec.iter().for_each(|(card_id, hash_card)| {
+                self.cards.insert(
+                    *card_id,
+                    Card {
+                        id: *card_id,
+                        stats: Some(self.bd_cards.get_mut(hash_card).unwrap().clone()),
+                    },
+                );
+            })
+        });
+
         for (player_id, player) in &self.players {
             let mut start_hand = init_card.clone();
             self.network.send_match_info(
@@ -141,8 +167,8 @@ impl GameMatch {
                 MatchInfo {
                     client_id: *player_id,
                     players: map.clone(),
-                    bd_cards: self.cards.get_bd(),
-                    start_cards: start_hand.remove(&player_id).unwrap(),
+                    bd_cards: self.bd_cards.clone().into_iter().collect(),
+                    start_cards: start_hand.remove(player_id).unwrap(),
                     opp_start_cards: start_hand
                         .into_iter()
                         .map(|(k, v)| (k, v.into_iter().map(|(k, _)| k).collect()))
@@ -165,7 +191,7 @@ struct Network {
     handler: NodeHandler<Signal>,
     listener: Option<NodeListener<Signal>>,
     subscriptions: HashMap<Endpoint, PlayerId>,
-    spawner: PlayerSpawner,
+    spawner: Spawner,
     history: Vec<Message>,
 }
 impl Network {
@@ -175,7 +201,7 @@ impl Network {
             handler,
             listener: Some(listener),
             subscriptions: HashMap::with_capacity(2), //HashSet
-            spawner: PlayerSpawner::default(),
+            spawner: Spawner::default(),
             history: Vec::with_capacity(30),
         }
     }
@@ -187,7 +213,7 @@ impl Network {
         self.listener.take().unwrap()
     }
     fn add_sub(&mut self, endpoint: Endpoint) {
-        let player_id = self.spawner.new_id();
+        let player_id = self.spawner.new_player_id();
         self.subscriptions.insert(endpoint, player_id);
         println!(
             "Client ({}) connected  player_id: {}",
@@ -195,8 +221,11 @@ impl Network {
             player_id
         );
     }
-    fn get_sub(&mut self, endpoint: Endpoint) -> PlayerId {
+    fn get_sub_id(&mut self, endpoint: Endpoint) -> PlayerId {
         self.subscriptions.get(&endpoint).unwrap().clone()
+    }
+    fn get_card_id(&mut self) -> CardId {
+        self.spawner.new_card_id()
     }
     fn send_match_info(&self, endpoint: Endpoint, match_info: MatchInfo) {
         self.handler
