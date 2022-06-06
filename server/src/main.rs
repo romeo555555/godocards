@@ -68,7 +68,7 @@ impl GameMatch {
                                 DeBin::deserialize_bin(data)
                             {
                                 println!("take event");
-                                self.match_msg(msg);
+                                self.match_msg(endpoint, msg);
                             }
                         } else if let Result::<PlayerDataHandler, DeBinErr>::Ok(player) =
                             DeBin::deserialize_bin(data)
@@ -91,15 +91,30 @@ impl GameMatch {
             },
             });
     }
-    fn match_msg(&mut self, msg: Message) {
+    fn match_msg(&mut self, endpoint: Endpoint, msg: Message) {
         match msg.event {
             Event::TakeCard(card_id) => {
                 self.network.send_msg_for_all(&msg);
+
+                let player = self.players.get_mut(&msg.player_id).unwrap();
+                let hash_card = player.get_random_card_hash();
+                player.add_card_hand(card_id);
+                self.add_card(&hash_card);
+                self.network.send_msg(
+                    endpoint,
+                    &Message::build(msg.player_id, Event::FlipCard(card_id, hash_card)),
+                );
             }
             Event::FlipCard(card_id, hash_card) => {}
             Event::CastCardOnTabel(card_id) => {
+                let card = self.cards.get(&card_id).unwrap();
+                //card_cost
+                let hash_card = card.stats.hash.clone();
                 self.network.send_msg_for_all(&msg);
-                // self.send_msg_for_all(Msg::build(msg.player_id, Event::FlipCard(card_id)));
+                self.network.send_msg_for_all(&Message::build(
+                    msg.player_id,
+                    Event::FlipCard(card_id, hash_card),
+                ));
             }
             Event::ChangeState(state) => {}
             Event::BackCardOnHand(card_id) => {}
@@ -116,13 +131,13 @@ impl GameMatch {
             self.create_match();
         }
     }
-    fn add_card(&mut self, hash_card: HashCard) -> CardId {
+    fn add_card(&mut self, hash_card: &HashCard) -> CardId {
         let card_id = self.network.get_card_id();
         self.cards.insert(
             card_id,
             Card {
                 id: card_id,
-                stats: Some(self.bd_cards.get_mut(&hash_card).unwrap().clone()),
+                stats: self.get_stats_from_bd(hash_card),
             },
         );
         card_id
@@ -154,7 +169,7 @@ impl GameMatch {
                     *card_id,
                     Card {
                         id: *card_id,
-                        stats: Some(self.bd_cards.get_mut(hash_card).unwrap().clone()),
+                        stats: self.get_stats_from_bd(hash_card),
                     },
                 );
             })
@@ -178,6 +193,9 @@ impl GameMatch {
         }
         self.is_ready = true;
         println!("Match ready");
+    }
+    fn get_stats_from_bd(&self, hash_card: &HashCard) -> CardStats {
+        self.bd_cards.get(hash_card).unwrap().clone()
     }
 }
 

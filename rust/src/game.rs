@@ -1,13 +1,11 @@
+use crate::gui::*;
 use crate::input::*;
-use crate::matchs::*;
+use crate::matchmaking::*;
 use crate::network::*;
-use crate::player::*;
 use crate::resources::*;
-use crate::systems::*;
 use crate::utils::*;
 use gdnative::api::*;
 use gdnative::prelude::*;
-
 // enum State {
 //     Auth,
 //     Main,
@@ -22,6 +20,8 @@ use gdnative::prelude::*;
 pub struct Game {
     name: String,
     resources: Resources,
+    // rendering: Rendering,
+    // input: Input,
     game_match: Option<Match>,
 }
 
@@ -42,6 +42,8 @@ impl Game {
     }
     #[export]
     unsafe fn _ready(&mut self, owner: &Node) {
+        logger::init(logger::Level::Info, logger::Output::File("log.txt")); //logger::Output::Stdout);
+        log::info!("Closing server");
         self.name = "Game".to_string();
         self.resources
             .load_prefabs_and_config(Config::new(owner, vec2(150., 180.)));
@@ -50,14 +52,16 @@ impl Game {
     #[export]
     unsafe fn _process(&mut self, owner: &Node, delta: f64) {
         if let Some(ref mut game_match) = self.game_match {
+            // game_match.draw(owner, &mut self.resources);
             game_match.input(owner, &mut self.resources);
             game_match.event(owner, &mut self.resources);
+            log::info!("Cococclosing server");
         }
     }
     //Button does'nt work witch touuch
     #[export]
     fn _on_Match_pressed(&mut self, owner: &Node) {
-        self.game_match = Some(Match::Match1x1(Match1x1::new(
+        self.game_match = Some(Match::new(
             owner,
             &mut self.resources,
             PlayerDataHandler {
@@ -78,7 +82,7 @@ impl Game {
                     character: "avatarmini1".to_owned(),
                 },
             },
-        )));
+        ));
     }
     #[export]
     fn _on_Collections_pressed(&mut self, _owner: &Node) {}
@@ -95,9 +99,6 @@ pub struct Config {
     pub card_size: Vec2,
 }
 impl Config {
-    // fn new(w: f32, h: f32) -> Self {
-    // fn new(screen_size: Vec2) -> Self {
-    // fn new(screen_size: Vec2, card_size: Vec2) -> Self {
     fn new(owner: &Node, card_size: Vec2) -> Self {
         let screen_size = owner
             .cast::<CanvasItem>()

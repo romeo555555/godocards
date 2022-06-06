@@ -33,6 +33,28 @@ impl ManaPool {
     //     }
     // }
     //TODO:query what type mana i want pay
+    // pub fn try_pay(&mut self, mana_cost: &Vec<Mana>) -> bool {
+    //     if self.check_cost(mana_cost) {
+    //         // self.pay(mana_cost);
+    //         return true;
+    //     }
+    //     false
+    // }
+    // fn check_cost(&mut self, mana_cost: &Vec<Mana>) -> bool {
+    //     mana_cost.iter_mut().for_each(|mana| {
+    //         let Mana { count, mana_form } = mana;
+    //         match mana_form {
+    //             ManaForm::Once(color) => self.match_color(color) > count,
+    //             ManaForm::Two(colors) => colors.into_iter().for_each(|color| {
+    //                 self.match_color(color) > count;
+    //             }),
+    //             ManaForm::Three(colors) => {}
+    //             ManaForm::Four(colors) => {}
+    //             ManaForm::Uncolor => {}
+    //         }
+    //     });
+    //     true
+    // }
     // pub fn try_pay(&mut self, mana_cost: &Vec<ManaForm>) -> bool {
     //     if self.check_cost(mana_cost) {
     //         self.pay(mana_cost);
@@ -89,15 +111,15 @@ impl ManaPool {
     //     *color_and_mana.0 += color_and_mana.1;
     //     self.all_count += color_and_mana.1;
     // }
-    // fn get_color_and_mana_count(&mut self, other: &Mana) -> (&mut u64, u64) {
-    //     match other {
-    //         Mana::Red(count) => (&mut self.red, *count),
-    //         Mana::Blue(count) => (&mut self.blue, *count),
-    //         Mana::Green(count) => (&mut self.green, *count),
-    //         Mana::Black(count) => (&mut self.black, *count),
-    //         Mana::White(count) => (&mut self.white, *count),
-    //     }
-    // }
+    fn match_color(&mut self, color: &ManaColor) -> &mut u64 {
+        match color {
+            ManaColor::Red => &mut self.red,
+            ManaColor::Blue => &mut self.blue,
+            ManaColor::Green => &mut self.green,
+            ManaColor::Black => &mut self.black,
+            ManaColor::White => &mut self.white,
+        }
+    }
     // pub fn print(&self) -> String {
     //     " | ".to_string().to_owned()
     //         + &self.red.to_string().clone()

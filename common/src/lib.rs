@@ -4,9 +4,10 @@ use std::collections::HashMap;
 
 //It's the same file with in server
 //Do this in own crate lib
-pub type PlayerId = u64; //String;
 pub type CardId = u64;
 pub type HashCard = String;
+
+pub type PlayerId = u64; //String;
 
 #[derive(Debug, Clone, SerBin, DeBin, PartialEq)]
 pub struct MatchInfo {
@@ -269,3 +270,56 @@ impl CardStatsBuilder {
         ]
     }
 }
+// pub enum PID {
+//     Player1,
+//     Opp1,
+//     Opp2,
+//     Friend,
+// }
+// pub struct Players {
+//     player1: Player,
+//     player2: Player,
+//     player3: Option<Player>,
+//     player4: Option<Player>,
+// }
+// impl Players {
+//     pub fn new(client: Player, opp1: Player) -> Self {
+//         Self {
+//             client,
+//             opp1,
+//             opp2: None,
+//             friend: None,
+//         }
+//     }
+//     pub fn new2x2(client: Player, opp1: Player, opp2: Player, friend: Player) -> Self {
+//         Self {
+//             client,
+//             opp1,
+//             opp2: Some(opp2),
+//             friend: Some(friend),
+//         }
+//     }
+// }
+
+// impl Index<PID> for Players {
+//     type Output = gui::player::Player;
+
+//     fn index(&self, pid: PID) -> &Self::Output {
+//         match pid {
+//             PID::Client => &self.client,
+//             PID::Opp1 => &self.opp1,
+//             PID::Opp2 => &self.opp2.unwrap(),
+//             PID::Friend => &self.friend.unwrap(),
+//         }
+//     }
+// }
+// impl IndexMut<PID> for Players {
+//     fn index_mut(&mut self, pid: PID) -> &mut Self::Output {
+//         match pid {
+//             PID::Client => &mut self.client,
+//             PID::Opp1 => &mut self.opp1,
+//             PID::Opp2 => &mut self.opp2.unwrap(),
+//             PID::Friend => &mut self.friend.unwrap(),
+//         }
+//     }
+// }

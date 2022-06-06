@@ -1,28 +1,29 @@
+use super::line::*;
 use crate::*;
 use gdnative::api::{Label, Node, ResourceLoader, TextureRect};
 use gdnative::object::{Ref, TRef};
 use gdnative::prelude::Shared;
 use gdnative::{api::Texture, prelude::godot_print};
-use std::{cmp::Ordering, ops::Add};
-pub mod components;
-use components::*;
 use nanoserde::{DeBin, SerBin};
+use std::{cmp::Ordering, ops::Add};
 
 pub struct Player {
-    // player_id: PlayerId,
     rect: Rect,
-    tabel: Tabel,
-    hand: Hand,
+    tabel: Line,
+    hand: Line,
     deck: Deck,
     items: Items,
     builds: Builds,
     character: Character,
     //avatar
-    healty: u64,
     data: PlayerData,
 }
 impl Player {
+    pub const CAPACITY_CARD_ON_TABEL: usize = 8;
     pub const CAPACITY_CARD_ON_HAND: usize = 8;
+    pub const CAPACITY_CARD_ON_DECK: usize = 8;
+    pub const CAPACITY_CARD_ON_ITEMS: usize = 8;
+    pub const CAPACITY_CARD_ON_BUILDS: usize = 8;
     pub fn new(
         player: Option<Ref<Node>>,
         rect: Rect,
@@ -34,9 +35,8 @@ impl Player {
         Player {
             // player_id: player_data.id.clone(),
             rect,
-            healty: 100,
-            tabel: Tabel::new(tabel_rect, Player::CAPACITY_CARD_ON_HAND, card_size),
-            hand: Hand::new(hand_rect, Player::CAPACITY_CARD_ON_HAND, card_size),
+            tabel: Line::new(tabel_rect, Player::CAPACITY_CARD_ON_TABEL, card_size),
+            hand: Line::new(hand_rect, Player::CAPACITY_CARD_ON_HAND, card_size),
             deck: Deck::new(player, player_data.deck_name),
             items: Items::new(player, player_data.items_name),
             builds: Builds::new(player, player_data.builds_name),
@@ -73,9 +73,17 @@ impl Player {
             return ResponseType::Builds;
         }
         if self.hand.contains(&sense) {
-            return self.hand.input_handler(sense);
+            return if let Some(id) = self.hand.input_handler(sense) {
+                ResponseType::HandCard(id)
+            } else {
+                ResponseType::Hand
+            };
         } else if self.tabel.contains(&sense) {
-            return self.tabel.input_handler(sense);
+            return if let Some(id) = self.tabel.input_handler(sense) {
+                ResponseType::TabelCard(id)
+            } else {
+                ResponseType::Tabel
+            };
         }
         ResponseType::None
     }
@@ -124,32 +132,34 @@ impl Player {
         self.hand.set_position(res);
         self.tabel.set_position(res);
     }
+    //     pub get_gui_state()->(){
+    //         pub struct Player {
+    //             tabel: [i64;4],
+    //             hand: [i64;4],
+    //             items: Items, //equpment
+    //             character: Character,
+    //             deck: Deck,
+    //             builds: ManaPool,
+    //         }
+    //         struct Items {
+    //             count: i64,
+    //             items: Vec<i64>,
+    //         }
+    //         struct Character {
+    //             healty: i64,
+    //         }
+    //         struct Deck {
+    //             card_count: i64,
+    //             dead_deck_count: i64,
+    //             dead_deck: Vec<i64>,
+    //         }
+    //         struct ManaPool {
+    //             count: i64,
+    //             items: Vec<i64>,
+    //         }
+    //    }
 }
-// pub struct DublePlayer {
-// player_id: PlayerId,
-//     rect: Rect,
-//     general_tabel: Tabel, //not all  unit controlled
-//     hand_client: Hand,
-//     hand_freind: Hand,
-//     deck: Deck,
-//     items: Items,
-//     builds: Builds,
-//     character: Character,
-//     //avatar
-//     healty: u64,
-//     data: PlayerData,
-//     player_type: PlayerType,
-//     // pub first_chance_order_step: u64,
-// }
-// #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug, DeBin, SerBin)]
-// pub enum PlayerType {
-//     Client,
-//     Remote,
-// }
 
-// pub struct DoubleSide<P: Player> {}
-
-//component
 pub struct Items {
     rect: Rect,
     label_name: RefLabel,
@@ -176,7 +186,7 @@ impl Items {
             label_name,
             label_count,
             count: 0,
-            items: Vec::with_capacity(8),
+            items: Vec::with_capacity(Player::CAPACITY_CARD_ON_ITEMS),
         }
     }
 }
@@ -210,7 +220,7 @@ pub struct Deck {
     rect: Rect,
     label_card_deck: RefLabel,
     label_dead_deck: RefLabel,
-    card_count: i64,
+    card_count: usize,
     dead_deck_count: i64,
     dead_deck: Vec<i64>,
 }
@@ -233,15 +243,16 @@ impl Deck {
             rect,
             label_card_deck,
             label_dead_deck,
-            card_count: 30,
             dead_deck_count: 0,
-            dead_deck: Vec::with_capacity(8),
+            card_count: Player::CAPACITY_CARD_ON_DECK,
+            dead_deck: Vec::with_capacity(Player::CAPACITY_CARD_ON_DECK),
         }
     }
 }
 pub struct Builds {
     rect: Rect,
     labels: Vec<RefLabel>,
+    builds: Vec<i64>,
 }
 impl Builds {
     pub fn new(player: Option<Ref<Node>>, texture: String) -> Self {
@@ -264,20 +275,22 @@ impl Builds {
             .collect();
         godot_print!("Builds create: {}", rect);
 
-        Self { rect, labels }
+        Self {
+            rect,
+            labels,
+            builds: Vec::with_capacity(Player::CAPACITY_CARD_ON_BUILDS),
+        }
     }
     pub fn update(&mut self, count: u64, color: ManaColor) {
-        self.labels
-            .get_mut(match color {
-                ManaColor::Red => 0,
-                ManaColor::Blue => 1,
-                ManaColor::Green => 2,
-                ManaColor::White => 3,
-                ManaColor::Black => 4,
-            })
-            .map(|label| {
-                unsafe { label.assume_safe() }.set_text(count.to_string());
-            });
+        if let Some(label) = self.labels.get_mut(match color {
+            ManaColor::Red => 0,
+            ManaColor::Blue => 1,
+            ManaColor::Green => 2,
+            ManaColor::White => 3,
+            ManaColor::Black => 4,
+        }) {
+            unsafe { label.assume_safe() }.set_text(count.to_string());
+        }
         // .unwrap();
     }
 }

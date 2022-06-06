@@ -11,27 +11,22 @@ pub struct Line {
     pub card_size: Vec2,
 }
 impl Line {
-    // pub fn new(
-    //     line_type: LineType,
-    //     x: f32,
-    //     y: f32,
-    //     width: f32,
-    //     height: f32,
-    //     capacity: usize,
-    // ) -> Self {
-    //     Self {
-    //         rect: Rect::new(x, y, width, height),
-    //         draw_query: VecDeque::with_capacity(capacity),
-    //         indent: vec2(10., 0.),
-    //         event_pos_changed: false,
-    //     }
-    // }
+    pub fn new(rect: Rect, capacity: usize, card_size: Vec2) -> Self {
+        // godot_print!("!!!!!Rect Hand:{}", rect);
+        Self {
+            rect,
+            draw_query: VecDeque::with_capacity(capacity),
+            indent: vec2(10., 0.),
+            event_pos_changed: false,
+            card_size,
+        }
+    }
     // pub fn create_card(&mut self, name: &'static str) {
     //     self.front_add_card(storage::get_mut::<Resources>().new_card(name));
     // }
-    // pub fn add_card(&mut self, card_id: CardId) {
-    //     self.front_add_card(card_id);
-    // }
+    pub fn add_card(&mut self, card_id: CardId) {
+        self.front_add_card(card_id);
+    }
     pub fn front_add_card(&mut self, card_id: CardId) {
         self.event_pos_changed = true;
         self.draw_query.push_front(card_id);
@@ -60,7 +55,20 @@ impl Line {
     //         ctx.query_hand(*id, cost);
     //     }
     // }
-
+    // pub fn input_handler(&self, sense: Sense) -> ResponseType {
+    //        if let Some(id) = self.line.input_handler(sense) {
+    //            return ResponseType::HandCard(id);
+    //        }
+    //        ResponseType::Hand
+    //    }
+    //  pub fn swap_card(&mut self, origin_draw_id: u64, target_card_id: u64) {
+    //      self.line.event_pos_changed = true;
+    //      if let Some(target_draw_id) = self.line.find_id(target_card_id) {
+    //          if let Some(origin_draw_id) = self.line.find_id(origin_draw_id) {
+    //              self.line.draw_query.swap(origin_draw_id, target_draw_id);
+    //          }
+    //      }
+    //  }
     pub fn contains(&self, sense: &Sense) -> bool {
         sense.contains_rect(&self.rect)
     }

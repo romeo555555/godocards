@@ -42,8 +42,10 @@ pub struct Network {
     // subscriptions: HashSet<Endpoint>,
     // pub network_rx: Receiver<Message>,
     // pub message_tx: Sender<Message>,
-    pub event_queue: EventReceiver<Message>,
+    event_queue: EventReceiver<Message>,
     _server: ServerProxy,
+    pub client_id: PlayerId,
+    event: Vec<Message>,
 }
 impl Network {
     pub fn new(player_client: PlayerDataHandler) -> (Self, EventReceiver<MatchInfo>) {
@@ -61,12 +63,23 @@ impl Network {
             Self {
                 event_queue,
                 _server: server,
+                client_id: PlayerId::default(),
+                event: Vec::with_capacity(5),
             },
             match_reciver,
         )
     }
-    pub fn call(&mut self, msg: Message) {
-        self._server.call(msg);
+    pub fn send_msg(&mut self, event: Event) {
+        godot_print!("send event : {:?}", event);
+        self.event.push(Message::build(self.client_id, event));
+    }
+
+    pub fn receive_event(&mut self) -> Option<Message> {
+        if let Some(msg) = self.event.pop() {
+            godot_print!("Message Event");
+            self._server.call(msg);
+        }
+        self.event_queue.try_receive()
     }
 }
 

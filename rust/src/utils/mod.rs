@@ -1,6 +1,7 @@
 // use gdnative::api::*;
 use gdnative::prelude::*;
 use std::fmt;
+pub mod logger;
 
 // use crate::input::Sense;
 pub fn switch_visible(owner: &Node, idx: i64) {

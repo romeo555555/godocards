@@ -1,22 +1,18 @@
 mod game;
+mod gui;
 mod input;
-mod matchs;
+mod matchmaking;
 mod network;
-mod player;
-// pub mod player::HashId;
-// mod rendering;
 mod resources;
-mod systems;
 mod utils;
 
-use crate::player::components::card::*;
+use crate::gui::card::*;
 use game::*;
+use gui::*;
 use input::*;
-use matchs::*;
+use matchmaking::*;
 use network::*;
-use player::*;
 use resources::*;
-use systems::*;
 use utils::*;
 
 use gdnative::prelude::{godot_init, InitHandle};

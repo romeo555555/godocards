@@ -208,6 +208,80 @@ impl Resources {
         self.cards_view.insert(card_id, card_stats_view);
         self.cards.insert(card_id, card);
     }
+    pub fn match_new_view(
+        owner: &Node,
+        ctx: &mut Resources,
+        client_id: PlayerId,
+        players: HashMap<PlayerId, PlayerDataHandler>,
+        opp_start_cards: HashMap<PlayerId, Vec<CardId>>,
+        start_cards: Vec<(CardId, HashCard)>,
+        // ) -> HashMap<PlayerId, Player> {
+    ) -> HashMap<PlayerId, Player> {
+        let match_scene = ResourceLoader::godot_singleton()
+            .load("res://Match.tscn", "PackedScene", false)
+            .and_then(|res| {
+                let res = unsafe { res.assume_thread_local() };
+                res.cast::<PackedScene>()
+            })
+            .and_then(|packed_scene| packed_scene.instance(PackedScene::GEN_EDIT_STATE_DISABLED))
+            .and_then(|scene| {
+                let scene = unsafe { scene.assume_safe() };
+                scene.cast::<Node2D>()
+            })
+            .expect("Could not load player scene");
+        owner.add_child(match_scene, false);
+        let rect = ctx.screen_rect();
+        let rect_up = rect.up_split_side();
+        let rect_down = rect.down_split_side();
+        let card_size = ctx.card_size();
+
+        let mut players: HashMap<PlayerId, Player> = players
+            .into_iter()
+            .map(|(id, player_data)| {
+                if id == client_id {
+                    (
+                        id,
+                        Player::new(
+                            match_scene.get_child(1),
+                            rect.down_split_side(),
+                            player_data,
+                            card_size,
+                            rect_down.up_split_side(),
+                            rect_down.down_split_side(),
+                        ),
+                    )
+                } else {
+                    (
+                        id,
+                        Player::new(
+                            match_scene.get_child(0),
+                            rect.up_split_side(),
+                            player_data,
+                            card_size,
+                            rect_up.down_split_side(),
+                            rect_up.up_split_side(),
+                        ),
+                    )
+                }
+            })
+            .collect();
+
+        start_cards.into_iter().for_each(|(card_id, hash_card)| {
+            let player = players.get_mut(&client_id).unwrap();
+            player.add_card_on_hand(ctx.card_new(owner, card_id));
+            ctx.flip_card(owner, card_id, hash_card);
+        });
+        opp_start_cards
+            .into_iter()
+            .for_each(|(player_id, vec_card_id)| {
+                let player = players.get_mut(&player_id).unwrap();
+                vec_card_id.into_iter().for_each(|card_id| {
+                    player.add_card_on_hand(ctx.card_new(owner, card_id));
+                });
+            });
+
+        players
+    }
 }
 impl Default for Resources {
     fn default() -> Self {
