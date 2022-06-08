@@ -5,8 +5,14 @@ use gdnative::object::{Ref, TRef};
 use gdnative::prelude::Shared;
 use gdnative::{api::Texture, prelude::godot_print};
 use nanoserde::{DeBin, SerBin};
+use std::collections::VecDeque;
 use std::{cmp::Ordering, ops::Add};
 
+#[derive(Copy, Clone, Debug)]
+pub enum LineType {
+    Tabel,
+    Hand,
+}
 pub struct Player {
     rect: Rect,
     tabel: Line,
@@ -15,8 +21,11 @@ pub struct Player {
     items: Items,
     builds: Builds,
     character: Character,
+    // tabel_changed:bool,
+    // hand_changed:bool,
     //avatar
     data: PlayerData,
+    is_client: bool,
 }
 impl Player {
     pub const CAPACITY_CARD_ON_TABEL: usize = 8;
@@ -28,34 +37,40 @@ impl Player {
         player: Option<Ref<Node>>,
         rect: Rect,
         player_data: PlayerDataHandler,
-        card_size: Vec2,
         tabel_rect: Rect,
         hand_rect: Rect,
+        is_client: bool,
     ) -> Player {
         Player {
             // player_id: player_data.id.clone(),
             rect,
-            tabel: Line::new(tabel_rect, Player::CAPACITY_CARD_ON_TABEL, card_size),
-            hand: Line::new(hand_rect, Player::CAPACITY_CARD_ON_HAND, card_size),
+            tabel: Line::new(tabel_rect, Player::CAPACITY_CARD_ON_TABEL),
+            hand: Line::new(hand_rect, Player::CAPACITY_CARD_ON_HAND),
             deck: Deck::new(player, player_data.deck_name),
             items: Items::new(player, player_data.items_name),
             builds: Builds::new(player, player_data.builds_name),
             character: Character::new(player, player_data.character_name),
             // avatar:
             data: player_data.data,
+            is_client,
         }
     }
 
     pub fn get_name(&self) -> String {
         self.data.name.clone()
     }
-    // pub fn player_type(&self) -> PlayerType {
-    //     self.player_type
-    // }
+    pub fn is_client(&self) -> bool {
+        self.is_client
+    }
     pub fn contains(&self, sense: Sense) -> bool {
         sense.contains_rect(&self.rect)
     }
-    pub fn contains_child(&self, sense: Sense) -> ResponseType {
+    pub fn contains_child(
+        &self,
+        sense: Sense,
+        card_size: Vec2,
+        exclude_card: Option<CardId>,
+    ) -> ResponseType {
         // if match self.player_type {
         //     PlayerType::Client => sense.mouse_x > self.rect.center_x,
         //     // PlayerType::Remote => sense.mouse_x < self.rect.center_x,
@@ -73,14 +88,22 @@ impl Player {
             return ResponseType::Builds;
         }
         if self.hand.contains(&sense) {
-            return if let Some(id) = self.hand.input_handler(sense) {
-                ResponseType::HandCard(id)
+            if let Some(exclude_card) = exclude_card {
+                if let Some(card_id) =
+                    self.hand
+                        .input_handler_witch_exclude(sense, card_size, exclude_card)
+                {
+                    return ResponseType::HandCard(card_id);
+                }
+            }
+            return if let Some(card_id) = self.hand.input_handler(sense, card_size) {
+                ResponseType::HandCard(card_id)
             } else {
                 ResponseType::Hand
             };
         } else if self.tabel.contains(&sense) {
-            return if let Some(id) = self.tabel.input_handler(sense) {
-                ResponseType::TabelCard(id)
+            return if let Some(card_id) = self.tabel.input_handler(sense, card_size) {
+                ResponseType::TabelCard(card_id)
             } else {
                 ResponseType::Tabel
             };
@@ -128,10 +151,10 @@ impl Player {
         //     .clone()
         "sss    ".to_owned()
     }
-    pub fn update_position(&mut self, res: &mut Resources) {
-        self.hand.set_position(res);
-        self.tabel.set_position(res);
-    }
+    // pub fn update_position(&mut self, res: &mut Resources) {
+    //     self.hand.set_position(res);
+    //     self.tabel.set_position(res);
+    // }
     //     pub get_gui_state()->(){
     //         pub struct Player {
     //             tabel: [i64;4],
@@ -158,6 +181,22 @@ impl Player {
     //             items: Vec<i64>,
     //         }
     //    }
+    pub fn sort_line(
+        &mut self,
+        ctx: &mut Resources,
+        line_type: LineType,
+        exclude_card: Option<CardId>,
+    ) {
+        let exclude_card = if self.is_client() { exclude_card } else { None };
+        self.get_line(line_type)
+            .sort_line(ctx, line_type, exclude_card)
+    }
+    pub fn get_line(&mut self, line_type: LineType) -> &mut Line {
+        match line_type {
+            LineType::Hand => &mut self.hand,
+            LineType::Tabel => &mut self.tabel,
+        }
+    }
 }
 
 pub struct Items {

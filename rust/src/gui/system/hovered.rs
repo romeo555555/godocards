@@ -2,22 +2,14 @@ use crate::*;
 
 #[derive(Default)]
 pub struct Hoverding {
-    pub select_id: Option<CardId>,
-    cached_id: Option<CardId>, //CardId,
+    pub select_card: Option<CardId>,
+    cached_card: Option<CardId>, //CardId,
     cached_pos: Vec2,
 }
 impl Hoverding {
-    //fn default
-    pub fn new() -> Self {
-        Self {
-            select_id: None,
-            cached_id: None, //CardId::default(),
-            cached_pos: Vec2::ZERO,
-        }
-    }
-    pub fn set(&mut self, resources: &mut Resources, select_id: CardId, card_offset: Vec2) {
-        let node = unsafe { resources.get_card(select_id).node.assume_safe() };
-        self.cached_id = Some(select_id);
+    pub fn set(&mut self, resources: &mut Resources, select_card: CardId, card_offset: Vec2) {
+        let node = unsafe { resources.get_card(select_card).node.assume_safe() };
+        self.cached_card = Some(select_card);
         self.cached_pos = node.global_position();
         //dont global?
         node.set_global_position(self.cached_pos - card_offset, false);
@@ -25,34 +17,34 @@ impl Hoverding {
         // // z-index +1
     }
 
-    fn reset(&mut self, resources: &mut Resources, cached_id: CardId) {
-        let node = unsafe { resources.get_card(cached_id).node.assume_safe() };
+    fn reset(&mut self, resources: &mut Resources, cached_card: CardId) {
+        let node = unsafe { resources.get_card(cached_card).node.assume_safe() };
         node.set_global_position(self.cached_pos, false);
         node.set_scale(vec2(1., 1.));
-        self.cached_id = None; //CardId::default();
+        self.cached_card = None; //CardId::default();
         self.cached_pos = Vec2::ZERO;
         // z-index -1
     }
     pub fn run(&mut self, resources: &mut Resources, sense: &Sense, card_offset: Vec2) {
-        if let Some(cached_id) = self.cached_id {
-            if let Some(select_id) = self.select_id.take() {
+        if let Some(cached_card) = self.cached_card {
+            if let Some(select_card) = self.select_card.take() {
                 //reset + set
-                if select_id != cached_id {
+                if select_card != cached_card {
                     // let pos = self.cached_pos;
                     //if !sense.contains_card(pos.x, pos.y) {
-                    self.reset(resources, cached_id);
-                    self.set(resources, select_id, card_offset);
+                    self.reset(resources, cached_card);
+                    self.set(resources, select_card, card_offset);
                 }
             } else {
                 // reset
                 let pos = self.cached_pos;
                 if !sense.contains_card(pos.x, pos.y) {
-                    self.reset(resources, cached_id);
+                    self.reset(resources, cached_card);
                 }
             }
-        } else if let Some(select_id) = self.select_id.take() {
+        } else if let Some(select_card) = self.select_card.take() {
             //set
-            self.set(resources, select_id, card_offset);
+            self.set(resources, select_card, card_offset);
         }
     }
 }

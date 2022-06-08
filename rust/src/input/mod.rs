@@ -57,6 +57,7 @@ pub struct Response {
     pub click_down: bool,
     pub click_up: bool,
     pub player_id: PlayerId,
+    pub is_client: bool,
 }
 impl Response {
     pub fn new(
@@ -64,6 +65,7 @@ impl Response {
         player_id: PlayerId,
         click_up: bool,
         click_down: bool,
+        is_client: bool,
     ) -> Response {
         //build_response
         Response {
@@ -71,6 +73,167 @@ impl Response {
             click_down,
             click_up,
             player_id,
+            is_client,
+        }
+    }
+    pub fn handler(self, owner: &Node, ctx: &mut Resources, gui: &mut Gui, network: &mut Network) {
+        if self.is_client {
+            if self.click_down {
+                self.match_response(owner, ctx, gui, network);
+            } else if gui.is_dragging() {
+                if self.click_up {
+                    self.match_drop(owner, ctx, gui, network);
+                } else {
+                    self.match_dragging(owner, ctx, gui, network);
+                }
+            }
+        } else {
+            //hovered
+            if let ResponseType::TabelCard(card_id) | ResponseType::HandCard(card_id) = self.item {
+                ////////////////////////gui.hovered(card_id);
+            } else {
+            }
+        };
+    }
+    pub fn match_response(
+        self,
+        owner: &Node,
+        ctx: &mut Resources,
+        gui: &mut Gui,
+        network: &mut Network,
+    ) {
+        match self.item {
+            ResponseType::TabelCard(card_id) => {
+                // match res.player {
+                //     PlayerType::Client=>{}
+                //     PlayerType::Remote =>{}
+                // }
+            }
+            ResponseType::HandCard(card_id) => {
+                gui.drag(ctx, card_id);
+                // match res.player {
+                //     PlayerType::Client => {
+                //         //drag
+                //         rendering.drag(card_id);
+                //     }
+                //     PlayerType::Remote => {}
+                // }
+            }
+            ResponseType::Deck => {
+                //+card and show card deck count / card dead deck
+
+                // godot_print!("{:?}", res);
+                network.send_msg(Event::TakeCard(CardId::default()))
+                // let side_player = self.get_side_player(res.player);
+                // if let DeckType::BuildDeck = deck_type {
+                //     side_player.player.add_mana(Mana::Red(2));
+                // } else {
+                //     let card_name = side_player.player.get_card_id();
+                //     self.queue_command.push(
+                //         CommandBuilder::default()
+                //             .line(LineType::Hand)
+                //             .build(res.player, Event::add_card(card_name)),
+                //     );
+                // self.query_command.push(match res.player {
+                //     PlayerType::Client => Command::AddCardClientHand("deckmini1".to_string()), //self.side_client.add_card_on_hand(),
+                //     PlayerType::Remote => Command::AddCardRemoteHand("deckmini1".to_string()),
+                // });
+            }
+            ResponseType::Builds => {
+                //show builds
+                // self.players
+                //     .get_mut(&self.client_id)
+                //     .expect("player_client not found")
+                //     .add_card_on_hand(create::card(owner, resources, 10000));
+            }
+            ResponseType::Items => {
+                //show items
+            }
+            ResponseType::Character => {
+                //show character descripton
+            }
+            //click on board
+            ResponseType::Tabel => {}
+            ResponseType::Hand => {}
+            ResponseType::None => {}
+        }
+    }
+    pub fn match_dragging(
+        self,
+        owner: &Node,
+        ctx: &mut Resources,
+        gui: &mut Gui,
+        network: &mut Network,
+    ) {
+        match self.item {
+            ResponseType::TabelCard(card_id) => {
+                //put card
+            }
+            ResponseType::Tabel => {
+                //cast to tabel
+            }
+            ResponseType::HandCard(card_id) => {
+                //put card
+            }
+            ResponseType::Hand => { //
+                 // if Client swap card
+            }
+            _ => {}
+        }
+    }
+
+    pub fn match_drop(
+        self,
+        owner: &Node,
+        ctx: &mut Resources,
+        gui: &mut Gui,
+        network: &mut Network,
+    ) {
+        match self.item {
+            ResponseType::TabelCard(_) | ResponseType::Tabel => {
+                //cast to tabel
+                // let card_cost = rendering.get_card_cost(fit_card_id);
+                //                     if self.side_client.player.try_pay_mana(card_cost) {
+                //                         self.queue_command.push(
+                //                             CommandBuilder::default().line(LineType::Hand).build(
+                //                                 PlayerType::Client,
+                //                                 Event::cast_on_tabel(fit_card_id),
+                //                             ),
+                //                         );
+                //                         rendering.drop();
+                if let Some(card_id) = gui.get_dragging_id() {
+                    network.send_msg(Event::CastCardOnTabel(card_id));
+                }
+            }
+
+            //     // LineType::Tabel => {
+            //     //                 let card_cost = rendering.get_card_cost(fit_card_id);
+            //     //                 if self.side_client.player.try_pay_mana(card_cost) {
+            //     //                     self.queue_command.push(
+            //     //                         CommandBuilder::default().line(LineType::Hand).build(
+            //     //                             PlayerType::Client,
+            //     //                             Event::cast_on_tabel(fit_card_id),
+            //     //                         ),
+            //     //                     );
+            //     //                     rendering.drop();
+            //     //                 }
+            //     //             }
+            // }
+            // ResponseType::HandCard(card_id) => {
+            //     match res.player {
+            //         PlayerType::Client => {
+            //             // swap card
+            //             // self.player_client
+            //             //     .swap_card_on_hand(dragging_card_id, card_id);
+            //         }
+            //         PlayerType::Remote => {}
+            //     }
+            // }
+            // ResponseType::Hand => {}
+            _ => {
+                //drop
+                gui.drop(ctx);
+            }
         }
     }
 }

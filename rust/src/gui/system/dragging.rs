@@ -3,53 +3,46 @@ use crate::*;
 #[derive(Default)]
 pub struct Dragging {
     pub select_card: Option<CardId>,
-    cached_pos: Option<Vec2>,
-    drop_back: bool,
 }
 impl Dragging {
-    pub fn new() -> Self {
-        Self {
-            select_card: None,
-            cached_pos: None,
-            drop_back: false,
-        }
-    }
-    pub fn is_dragging(&self) -> bool {
+    pub fn is_some(&self) -> bool {
         self.select_card.is_some()
     }
-    pub fn get_dragging_id(&mut self) -> CardId {
-        //??
-        // self.cached_pos = None;
-        // self.drop_back = false;
-        self.select_card.unwrap()
-    }
-    pub fn run(&mut self, res: &mut Resources, pos: Vec2, card_offset: Vec2) {
+    // pub fn get_id(&mut self) -> CardId {
+    //     //??
+    //     // self.cached_pos = None;
+    //     // self.drop_back = false;
+    //     self.select_card.unwrap()
+    // }
+    pub fn run(&mut self, ctx: &mut Resources, pos: Vec2, card_offset: Vec2) {
         if let Some(select_id) = self.select_card {
-            if self.drop_back {
-                if let Some(cached_pos) = self.cached_pos {
-                    let node = unsafe { res.get_card(select_id).node.assume_safe() };
-                    // node.set_global_position(cached_pos + card_offset, false);
-                    node.set_global_position(cached_pos, false);
-                    self.select_card = None;
-                    self.cached_pos = None;
-                    self.drop_back = false;
-                }
-            } else {
-                let node = unsafe { res.get_card(select_id).node.assume_safe() };
-                if self.cached_pos.is_none() {
-                    self.cached_pos = Some(node.global_position());
-                    // node.set_scale(vec2(1.5, 1.5));
-                    // // z-index -1
-                }
-                node.set_global_position(pos, false);
-            }
+            // if self.drop_back {
+            //     if let Some(cached_pos) = self.cached_pos {
+            //         let node = unsafe { res.get_card(select_id).node.assume_safe() };
+            //         // node.set_global_position(cached_pos + card_offset, false);
+            //         node.set_global_position(cached_pos, false);
+            //         self.select_card = None;
+            //         self.cached_pos = None;
+            //         self.drop_back = false;
+            //     }
+            // } else {
+            //     let node = unsafe { res.get_card(select_id).node.assume_safe() };
+            //     if self.cached_pos.is_none() {
+            //         self.cached_pos = Some(node.global_position());
+            //         // node.set_scale(vec2(1.5, 1.5));
+            //         // // z-index -1
+            //     }
+            //     node.set_global_position(pos, false);
+            // }
+            let node = unsafe { ctx.get_card(select_id).node.assume_safe() };
+            node.set_global_position(pos, false);
         }
     }
     pub fn drop(&mut self) {
         //card: &mut Card
         self.select_card = None;
-        self.cached_pos = None;
-        self.drop_back = false;
+        // self.cached_pos = None;
+        // self.drop_back = false;
         // self.select_card = None;
         // node.set_scale(vec2(1., 1.));
         // // z-index +1
@@ -58,7 +51,8 @@ impl Dragging {
         //else handle
     }
     pub fn drop_without_target(&mut self) {
-        self.drop_back = true;
+        // self.drop_back = true;
+        self.select_card = None;
     }
     // pub fn drop(&mut self, res: Response, rendering: &mut Rendering) {
     //     match res.item {

@@ -46,7 +46,7 @@ impl Game {
         log::info!("Closing server");
         self.name = "Game".to_string();
         self.resources
-            .load_prefabs_and_config(Config::new(owner, vec2(150., 180.)));
+            .load_prefabs_and_config(Config::new(owner, vec2(150., 180.), vec2(10., 0.)));
         godot_print!("{} is ready!", self.name);
     }
     #[export]
@@ -96,10 +96,11 @@ pub struct Config {
     pub screen_width: f32,
     pub screen_height: f32,
     pub screen_rect: Rect,
+    pub card_indent: Vec2,
     pub card_size: Vec2,
 }
 impl Config {
-    fn new(owner: &Node, card_size: Vec2) -> Self {
+    fn new(owner: &Node, card_size: Vec2, card_indent: Vec2) -> Self {
         let screen_size = owner
             .cast::<CanvasItem>()
             .map(|node| node.get_viewport_rect())
@@ -120,6 +121,7 @@ impl Config {
             card_size,
             screen_width: screen_size.x,
             screen_height: screen_size.y,
+            card_indent,
         }
     }
     pub fn is_up_side(&self, mouse_y: f32) -> bool {
