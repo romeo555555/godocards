@@ -21,7 +21,7 @@ pub struct MatchInfo {
 #[derive(Debug, Clone, SerBin, DeBin, PartialEq)]
 pub enum MatchType {
     Default,
-    TwoFaces,
+    // TwoFaces,
     Match2x2,
 }
 

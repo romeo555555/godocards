@@ -1,17 +1,18 @@
-mod component;
 mod game;
+mod gui;
 mod input;
+mod matchmaking;
 mod network;
 mod resources;
-mod system;
 mod utils;
 
-use component::*;
+use crate::gui::card::*;
 use game::*;
+use gui::*;
 use input::*;
+use matchmaking::*;
 use network::*;
 use resources::*;
-use system::*;
 use utils::*;
 
 use gdnative::prelude::{godot_init, InitHandle};

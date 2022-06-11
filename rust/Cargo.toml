@@ -11,11 +11,12 @@ crate-type = ["cdylib", "staticlib"]
 gdnative = "0.10.0"
 # gdnative = { path = "../../godot-rust/gdnative" }
 conv = "0.3.3"
+bevy_ecs = "0.7.0"
+common = { path = "../common" }
+message-io = "0.14.5"
 nanoserde = "0.1.29"
 bitfield = "0.13.2"
 base64 = "0.13.0"
-message-io = "0.14.5"
-common = { path = "../common" }
 log = "0.4.17"
 fern = { version = "0.6.1", features = ["colored"] }
 chrono = "0.4"
