@@ -1,21 +1,17 @@
+mod component;
 mod game;
-mod gui;
-mod input_action;
+mod input;
 mod network;
-// mod reducer;
 mod resources;
-mod selecting;
-mod store;
+mod system;
 mod utils;
 
+use component::*;
 use game::*;
-use gui::*;
-use input_action::*;
+use input::*;
 use network::*;
-// use reducer::*;
 use resources::*;
-use selecting::*;
-use store::*;
+use system::*;
 use utils::*;
 
 use gdnative::prelude::{godot_init, InitHandle};

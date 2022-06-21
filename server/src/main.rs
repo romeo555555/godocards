@@ -1,12 +1,13 @@
-use card::*;
-use player::*;
-// use common::CardId;
+use common::card::{CardId, CardState, HashCard};
+use common::card_builder::CardStateBuilder;
+use common::game_match::MatchInfo;
+use common::player::{LineType, PlayerData, PlayerId, PlayerState};
 use mana::*;
-mod card;
-mod player;
-// mod common;
 mod mana;
+mod network;
 use common::*;
+use network::*;
+use rand::*;
 extern crate common;
 use message_io::network::{Endpoint, NetEvent, Transport};
 use message_io::node::{self, NodeEvent, NodeHandler, NodeListener};
@@ -31,20 +32,22 @@ pub fn main() {
 
 struct GameMatch {
     // config: Config,
+    bd_cards: HashMap<HashCard, CardState>,
     network: Network,
-    bd_cards: HashMap<HashCard, CardStats>,
-    state: State,
-    players: HashMap<PlayerId, Player>,
-    cards: HashMap<CardId, Card>,
+    // state: MatchState,
+    players_state: HashMap<PlayerId, PlayerState>,
+    players_data: HashMap<PlayerId, PlayerData>,
+    cards: HashMap<CardId, CardState>,
     is_ready: bool,
 }
 impl Default for GameMatch {
     fn default() -> Self {
         Self {
             network: Network::new(),
-            bd_cards: CardStatsBuilder::new_pool().into_iter().collect(),
-            state: State::None,
-            players: HashMap::with_capacity(2),
+            bd_cards: CardStateBuilder::new_pool().into_iter().collect(),
+            // state: State::None,
+            players_state: HashMap::with_capacity(2),
+            players_data: HashMap::with_capacity(2),
             cards: HashMap::with_capacity(40),
             is_ready: false,
         }
@@ -52,6 +55,10 @@ impl Default for GameMatch {
 }
 impl GameMatch {
     const NEEDED_PLAYER_FOR_START: usize = 2;
+    const HC: [&'static str; 10] = [
+        "unit1", "unit2", "unit3", "unit4", "unit5", "unit6", "unit7", "unit7", "wizard1",
+        "wizard2",
+    ];
     pub fn run(&mut self, transport: Transport, addr: SocketAddr) {
         self.network
             .take_listener(transport, addr)
@@ -64,13 +71,14 @@ impl GameMatch {
                     }
                     NetEvent::Message(endpoint, data) => {
                         if self.is_ready {
-                            if let Result::<Message, DeBinErr>::Ok(msg) =
+                            if let Result::<ClientMessage, DeBinErr>::Ok(msg) =
                                 DeBin::deserialize_bin(data)
                             {
                                 println!("take event");
                                 self.match_msg(endpoint, msg);
                             }
-                        } else if let Result::<PlayerDataHandler, DeBinErr>::Ok(player) =
+                        //TODO: } else if let Result::<(PlayerData, [HashCard; 30], DeBinErr>::Ok(player) =
+                        } else if let Result::<PlayerData, DeBinErr>::Ok(player) =
                             DeBin::deserialize_bin(data)
                         {
                             self.add_player(endpoint, player);
@@ -91,112 +99,171 @@ impl GameMatch {
             },
             });
     }
-    fn match_msg(&mut self, endpoint: Endpoint, msg: Message) {
-        match msg.event {
-            Event::TakeCard(card_id) => {
-                self.network.send_msg_for_all(&msg);
+    fn match_msg(&mut self, endpoint: Endpoint, msg: ClientMessage) {
+        match msg.action {
+            ClientAction::TakeCard => {
+                // let player = self.players_state.get_mut(&msg.player_id).unwrap();
+                // let hash_card = player.get_random_card_hash();
+                // player.add_card_hand(card_id);
+                // self.add_card(&hash_card);
+                let player_id = self.network.get_sub_id(endpoint);
+                let (card_id, hash_card) = self.add_random_card(&player_id);
 
-                let player = self.players.get_mut(&msg.player_id).unwrap();
-                let hash_card = player.get_random_card_hash();
-                player.add_card_hand(card_id);
-                self.add_card(&hash_card);
+                self.network.send_msg_for_all(&ServerMessage::build(
+                    player_id,
+                    ServerAction::TakeCard(card_id),
+                ));
                 self.network.send_msg(
                     endpoint,
-                    &Message::build(msg.player_id, Event::FlipCard(card_id, hash_card)),
+                    &ServerMessage::build(player_id, ServerAction::FlipCard(card_id, hash_card)),
                 );
             }
-            Event::FlipCard(card_id, hash_card) => {}
-            Event::CastCardOnTabel(card_id) => {
+            ClientAction::FlipCard(card_id, hash_card) => {}
+            ClientAction::CastCardOnTabel(card_id) => {
                 let card = self.cards.get(&card_id).unwrap();
                 //card_cost
-                let hash_card = card.stats.hash.clone();
-                self.network.send_msg_for_all(&msg);
-                self.network.send_msg_for_all(&Message::build(
+                let hash_card = card.hash.clone();
+                self.network.send_msg_for_all(&ServerMessage::build(
                     msg.player_id,
-                    Event::FlipCard(card_id, hash_card),
+                    ServerAction::CastCardOnTabel(card_id),
+                ));
+                self.network.send_msg_for_all(&ServerMessage::build(
+                    msg.player_id,
+                    ServerAction::FlipCard(card_id, hash_card),
                 ));
             }
-            Event::ChangeState(state) => {}
-            Event::BackCardOnHand(card_id) => {}
+            ClientAction::BackCardOnHand(card_id) => {}
+            ClientAction::EndStep => {}
             _ => {}
         }
     }
-    fn add_player(&mut self, endpoint: Endpoint, player_handler: PlayerDataHandler) {
-        self.players.insert(
-            self.network.get_sub_id(endpoint),
-            Player::new(endpoint, player_handler),
-        );
+    fn add_player(&mut self, endpoint: Endpoint, player_data: PlayerData) {
+        let player_id = self.network.get_sub_id(endpoint);
+        self.players_state
+            .insert(player_id, PlayerState::new(false));
+        self.players_data.insert(player_id, player_data);
 
-        if self.players.len() == GameMatch::NEEDED_PLAYER_FOR_START {
+        if self.players_state.len() == GameMatch::NEEDED_PLAYER_FOR_START {
             self.create_match();
         }
     }
-    fn add_card(&mut self, hash_card: &HashCard) -> CardId {
-        let card_id = self.network.get_card_id();
-        self.cards.insert(
-            card_id,
-            Card {
-                id: card_id,
-                stats: self.get_stats_from_bd(hash_card),
-            },
-        );
-        card_id
-    }
+
     fn create_match(&mut self) {
-        let map: HashMap<PlayerId, PlayerDataHandler> = self
-            .players
+        // let mut init_card: HashMap<PlayerId, Vec<(CardId, HashCard)>> =
+        //     HashMap::with_capacity(self.players.len());
+
+        // for (player_id, player) in self.players.iter_mut() {
+        //     let mut vec = Vec::with_capacity(3);
+        //     for _ in 0..3 {
+        //         let hash_card = player.get_random_card_hash();
+        //         let card_id = self.network.get_card_id();
+
+        //         player.add_card_hand(card_id);
+        //         vec.push((card_id, hash_card));
+        //     }
+        //     init_card.insert(*player_id, vec);
+        // }
+        // init_card.iter().for_each(|(_, vec)| {
+        //     vec.iter().for_each(|(card_id, hash_card)| {
+        //         self.cards.insert(
+        //             *card_id,
+        //             Card {
+        //                 id: *card_id,
+        //                 stats: self.get_stats_from_bd(hash_card),
+        //             },
+        //         );
+        //     })
+        // });
+        let keys: Vec<PlayerId> = self
+            .players_state
             .iter()
-            .map(|(id, player)| (*id, player.player_handler.clone()))
+            .map(|(id, _)| id.clone())
             .collect();
-
-        let mut init_card: HashMap<PlayerId, Vec<(CardId, HashCard)>> =
-            HashMap::with_capacity(self.players.len());
-
-        for (player_id, player) in self.players.iter_mut() {
-            let mut vec = Vec::with_capacity(3);
+        keys.into_iter().for_each(|id| {
             for _ in 0..3 {
-                let hash_card = player.get_random_card_hash();
-                let card_id = self.network.get_card_id();
-
-                player.add_card_hand(card_id);
-                vec.push((card_id, hash_card));
+                self.add_random_card(&id);
             }
-            init_card.insert(*player_id, vec);
-        }
-        init_card.iter().for_each(|(_, vec)| {
-            vec.iter().for_each(|(card_id, hash_card)| {
-                self.cards.insert(
-                    *card_id,
-                    Card {
-                        id: *card_id,
-                        stats: self.get_stats_from_bd(hash_card),
-                    },
-                );
-            })
         });
+        for (player_id, player) in &self.players_state {
+            // let mut start_hand = init_card.clone();
+            let mut cards: HashMap<CardId, Option<CardState>> = self
+                .cards
+                .clone()
+                .into_iter()
+                .map(|(id, state)| (id, Some(state)))
+                .collect();
+            let players_state = self
+                .players_state
+                .clone()
+                .into_iter()
+                .map(|(id, mut state)| {
+                    if *player_id == id {
+                        state.is_controlled = true;
+                    } else {
+                        state.get_hand().iter().for_each(|card_id| {
+                            cards.get_mut(card_id).unwrap().take();
+                        });
+                    }
+                    (id, state)
+                })
+                .collect();
 
-        for (player_id, player) in &self.players {
-            let mut start_hand = init_card.clone();
+            let endpoint = self.network.get_endpoint(player_id).unwrap();
+
             self.network.send_match_info(
-                player.endpoint,
+                endpoint,
                 MatchInfo {
                     client_id: *player_id,
-                    players: map.clone(),
-                    bd_cards: self.bd_cards.clone().into_iter().collect(),
-                    start_cards: start_hand.remove(player_id).unwrap(),
-                    opp_start_cards: start_hand
-                        .into_iter()
-                        .map(|(k, v)| (k, v.into_iter().map(|(k, _)| k).collect()))
-                        .collect(),
+                    players_state,
+                    players_data: self.players_data.clone(),
+                    bd_cards: self.bd_cards.clone(),
+                    cards,
+                    // start_cards: start_hand.remove(player_id).unwrap(),
+                    // opp_start_cards: start_hand
+                    //     .into_iter()
+                    //     .map(|(k, v)| (k, v.into_iter().map(|(k, _)| k).collect()))
+                    //     .collect(),
                 },
             );
         }
         self.is_ready = true;
         println!("Match ready");
     }
-    fn get_stats_from_bd(&self, hash_card: &HashCard) -> CardStats {
+    fn get_random_card_state(&mut self) -> CardState {
+        self.bd_cards
+            .get(Self::HC[rand::thread_rng().gen_range(0..10)])
+            .unwrap()
+            .clone() //shake deck
+    }
+    fn get_stats_from_bd(&self, hash_card: &HashCard) -> CardState {
         self.bd_cards.get(hash_card).unwrap().clone()
     }
+    fn add_random_card(&mut self, player_id: &PlayerId) -> (CardId, HashCard) {
+        let card_id = self.network.get_card_id();
+        self.players_state
+            .get_mut(player_id)
+            .unwrap()
+            .push_hand(card_id);
+        let state = self.get_random_card_state();
+        let hash_card = state.hash.clone();
+        self.cards.insert(card_id, state);
+        (card_id, hash_card)
+    }
+    // fn add_card(
+    //     &mut self,
+    //     player_id: &PlayerId,
+    //     line_type: LineType,
+    //     hash_card: &HashCard,
+    // ) -> CardId {
+    //     let card_id = self.network.get_card_id();
+    //     self.players_state
+    //         .get_mut(player_id)
+    //         .unwrap()
+    //         .add_card(card_id);
+    //     self.cards
+    //         .insert(card_id, self.get_stats_from_bd(hash_card));
+    //     card_id
+    // }
 }
 
 // // State::None => {
@@ -205,61 +272,3 @@ impl GameMatch {
 // // State::PlayerStep(id) => {}
 // // State::AfterStep(id) => {}
 // // State::EndGame => {}
-struct Network {
-    handler: NodeHandler<Signal>,
-    listener: Option<NodeListener<Signal>>,
-    subscriptions: HashMap<Endpoint, PlayerId>,
-    spawner: Spawner,
-    history: Vec<Message>,
-}
-impl Network {
-    fn new() -> Self {
-        let (handler, listener) = node::split();
-        Self {
-            handler,
-            listener: Some(listener),
-            subscriptions: HashMap::with_capacity(2), //HashSet
-            spawner: Spawner::default(),
-            history: Vec::with_capacity(30),
-        }
-    }
-    fn take_listener(&mut self, transport: Transport, addr: SocketAddr) -> NodeListener<Signal> {
-        match self.handler.network().listen(transport, addr) {
-            Ok((_id, real_addr)) => println!("Server running at {} by {}", real_addr, transport),
-            Err(_) => panic!("Can not listening at {} by {}", addr, transport),
-        }
-        self.listener.take().unwrap()
-    }
-    fn add_sub(&mut self, endpoint: Endpoint) {
-        let player_id = self.spawner.new_player_id();
-        self.subscriptions.insert(endpoint, player_id);
-        println!(
-            "Client ({}) connected  player_id: {}",
-            endpoint.addr(),
-            player_id
-        );
-    }
-    fn get_sub_id(&mut self, endpoint: Endpoint) -> PlayerId {
-        self.subscriptions.get(&endpoint).unwrap().clone()
-    }
-    fn get_card_id(&mut self) -> CardId {
-        self.spawner.new_card_id()
-    }
-    fn send_match_info(&self, endpoint: Endpoint, match_info: MatchInfo) {
-        self.handler
-            .network()
-            .send(endpoint, &SerBin::serialize_bin(&match_info));
-    }
-    fn send_msg(&self, endpoint: Endpoint, msg: &Message) {
-        self.handler
-            .network()
-            .send(endpoint, &SerBin::serialize_bin(msg));
-    }
-    fn send_msg_for_all(&mut self, msg: &Message) {
-        self.subscriptions.keys().for_each(|endpoint| {
-            self.handler
-                .network()
-                .send(*endpoint, &SerBin::serialize_bin(msg));
-        });
-    }
-}

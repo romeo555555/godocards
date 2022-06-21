@@ -1,5 +1,4 @@
 use crate::*;
-use common::card::{CardState, HashCard};
 use gdnative::{api::TextureRect, prelude::*};
 use std::collections::HashMap;
 pub type RefLabel = Ref<Label>;
@@ -10,7 +9,7 @@ pub struct Resources {
     pub(crate) prefab_card_unit: Option<Ref<PackedScene>>,
     pub(crate) prefab_card_spell: Option<Ref<PackedScene>>,
     pub(crate) prefab_mana: Option<Ref<PackedScene>>,
-    pub(crate) bd_cards: HashMap<HashCard, CardState>, // bd all game card stats
+    pub(crate) bd_cards: HashMap<HashCard, CardStats>, // bd all game card stats
     pub(crate) config: Config,
 
     // cards: HashMap<CardId, Card>,               //cards on current game
@@ -71,9 +70,50 @@ impl Resources {
     pub fn card_indent(&self) -> Vec2 {
         self.config.card_indent
     }
-    pub fn get_card_from_bd(&self, card_hash: HashCard) -> CardState {
-        self.bd_cards.get(&card_hash).unwrap().clone()
-    }
+    //     pub fn card_type_change(&mut self, owner: &Node, card_id: CardId, stats: CardStats) {
+    //         let card_node = unsafe { self.get_card(card_id).node.assume_unique() };
+    //         let pos = card_node.global_position();
+    //         card_node.queue_free();
+
+    //         let card_node = match stats.card_type {
+    //             CardType::Unit(_) => {
+    //                 let prefab_card_unit = self.prefab_card_unit.take().unwrap();
+    //                 let prefab_obj = unsafe { prefab_card_unit.assume_safe() };
+    //                 let card_unit_node = prefab_obj
+    //                     .instance(0)
+    //                     .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
+    //                     .expect("Could not load player scene");
+    //                 card_unit_node.set_global_position(pos, false);
+    //                 owner.add_child(card_unit_node, false);
+    //                 //name load json
+    //                 //load stats
+
+    //                 self.prefab_card_unit.replace(prefab_obj.claim());
+    //                 card_unit_node
+    //             }
+    //             _ => {
+    //                 let prefab_card_spell = self.prefab_card_spell.take().unwrap();
+    //                 let prefab_obj = unsafe { prefab_card_spell.assume_safe() };
+    //                 let card_spell_node = prefab_obj
+    //                     .instance(0)
+    //                     .and_then(|scene| unsafe { scene.assume_safe() }.cast::<Control>())
+    //                     .expect("Could not load player scene");
+    //                 card_spell_node.set_global_position(pos, false);
+    //                 // let pos = unsafe { card.get_child(0).unwrap().assume_safe() }
+    //                 //     .cast::<TextureRect>()
+    //                 //     .unwrap()
+    //                 //     .size();
+    //                 owner.add_child(card_spell_node, false);
+    //                 //name load json
+    //                 //load stats
+    //                 self.prefab_card_spell.replace(prefab_obj.claim());
+    //                 card_spell_node
+    //             }
+    //         };
+    //         let (card_stats_view, card) = self.card_new_view(card_node, stats);
+    //         self.cards_view.insert(card_id, card_stats_view);
+    //         self.cards.insert(card_id, card);
+    //     }
 }
 impl Default for Resources {
     fn default() -> Self {
@@ -144,44 +184,6 @@ fn load(name: String) -> Ref<Texture> {
         )
         .and_then(|res| res.cast::<Texture>())
         .expect("Couldn't load sprite texture")
-}
-#[derive(Default)]
-pub struct Config {
-    pub screen_size: Vec2,
-    pub screen_width: f32,
-    pub screen_height: f32,
-    pub screen_rect: Rect,
-    pub card_indent: Vec2,
-    pub card_size: Vec2,
-}
-impl Config {
-    pub fn new(owner: &Node, card_size: Vec2, card_indent: Vec2) -> Self {
-        let screen_size = owner
-            .cast::<CanvasItem>()
-            .map(|node| node.get_viewport_rect())
-            .map(|viewport| {
-                godot_print!(
-                    "_{}-{}_ is screen pos! //// _{}-{}_ is screen size!",
-                    viewport.position.x,
-                    viewport.position.y,
-                    viewport.size.x,
-                    viewport.size.y,
-                );
-                viewport.size
-            })
-            .unwrap();
-        Self {
-            screen_rect: Rect::new(0., 0., screen_size.x, screen_size.y),
-            screen_size,
-            card_size,
-            screen_width: screen_size.x,
-            screen_height: screen_size.y,
-            card_indent,
-        }
-    }
-    pub fn is_up_side(&self, mouse_y: f32) -> bool {
-        self.screen_size.y > mouse_y
-    }
 }
 // pub struct CardStatsView {
 //     name: RefLabel,
@@ -272,3 +274,63 @@ impl Config {
 // "stats_back".to_owned(),
 // "stats_field".to_owned(),
 // ));
+#[derive(Default)]
+pub struct Config {
+    pub screen_size: Vec2,
+    pub screen_width: f32,
+    pub screen_height: f32,
+    pub screen_rect: Rect,
+    pub card_indent: Vec2,
+    pub card_size: Vec2,
+}
+impl Config {
+    pub fn new(owner: &Node, card_size: Vec2, card_indent: Vec2) -> Self {
+        let screen_size = owner
+            .cast::<CanvasItem>()
+            .map(|node| node.get_viewport_rect())
+            .map(|viewport| {
+                godot_print!(
+                    "_{}-{}_ is screen pos! //// _{}-{}_ is screen size!",
+                    viewport.position.x,
+                    viewport.position.y,
+                    viewport.size.x,
+                    viewport.size.y,
+                );
+                viewport.size
+            })
+            .unwrap();
+        Self {
+            screen_rect: Rect::new(0., 0., screen_size.x, screen_size.y),
+            screen_size,
+            card_size,
+            screen_width: screen_size.x,
+            screen_height: screen_size.y,
+            card_indent,
+        }
+    }
+    pub fn is_up_side(&self, mouse_y: f32) -> bool {
+        self.screen_size.y > mouse_y
+    }
+}
+
+pub struct Player {
+    tabel: Vec<CardId>,
+    hand: Vec<CardId>,
+    equipment: Equipment,
+    character: Character,
+    factories: Factories,
+    deck: Deck,
+}
+pub struct Equipment {
+    count: i64,
+    items: Vec<i64>,
+}
+pub struct Deck {
+    card_count: usize,
+    dead_deck_count: i64,
+    dead_deck: Vec<i64>,
+}
+pub struct Character {}
+pub struct Factories {
+    builds: Vec<i64>,
+}

@@ -111,15 +111,15 @@ impl ManaPool {
     //     *color_and_mana.0 += color_and_mana.1;
     //     self.all_count += color_and_mana.1;
     // }
-    fn match_color(&mut self, color: &ManaColor) -> &mut u64 {
-        match color {
-            ManaColor::Red => &mut self.red,
-            ManaColor::Blue => &mut self.blue,
-            ManaColor::Green => &mut self.green,
-            ManaColor::Black => &mut self.black,
-            ManaColor::White => &mut self.white,
-        }
-    }
+    // fn match_color(&mut self, color: &ManaColor) -> &mut u64 {
+    //     match color {
+    //         ManaColor::Red => &mut self.red,
+    //         ManaColor::Blue => &mut self.blue,
+    //         ManaColor::Green => &mut self.green,
+    //         ManaColor::Black => &mut self.black,
+    //         ManaColor::White => &mut self.white,
+    //     }
+    // }
     // pub fn print(&self) -> String {
     //     " | ".to_string().to_owned()
     //         + &self.red.to_string().clone()
