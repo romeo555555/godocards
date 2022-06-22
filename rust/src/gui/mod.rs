@@ -12,6 +12,7 @@ use gdnative::{
     object::{Ref, TRef},
     prelude::*,
 };
+use lazy_static::lazy_static;
 use std::{
     collections::HashMap,
     slice::{Iter, SliceIndex},
@@ -26,24 +27,25 @@ use gdnative::{api::Texture, prelude::godot_print};
 use nanoserde::{DeBin, SerBin};
 use std::collections::VecDeque;
 use std::{cmp::Ordering, ops::Add};
+mod layout;
+use layout::*;
 
+lazy_static! {
+    static ref LAYOUT: Layout = Layout::new();
+}
 pub struct Gui {
+    prefabs: Prefabs,
     players_view: HashMap<PlayerId, PlayerView>,
     cards_view: HashMap<CardId, CardView>,
 }
 impl Gui {
     pub fn new(
         owner: &Node,
-        res: &mut Resources,
         match_info: MatchInfo,
         server_api: ServerApi,
         // client_id: PlayerId,
-    ) -> (
-        Self,
-        Store, // HashMap<PlayerId, FlagsForUpdate>,
-               // HashMap<PlayerId, PlayerState>,
-               // HashMap<CardId, Option<CardState>>
-    ) {
+    ) -> (Self, Store) {
+        let mut prefabs = Prefabs::init(); //TODO:Up on ierarhi and in Option<Prefabs>
         let match_scene = ResourceLoader::godot_singleton()
             .load("res://Match.tscn", "PackedScene", false)
             .and_then(|res| {
@@ -57,9 +59,6 @@ impl Gui {
             })
             .expect("Could not load player scene");
         owner.add_child(match_scene, false);
-        let rect = res.screen_rect();
-        let rect_up = rect.up_split_side();
-        let rect_down = rect.down_split_side();
 
         let MatchInfo {
             client_id,
@@ -68,8 +67,8 @@ impl Gui {
             cards,
             bd_cards,
         } = match_info;
-        res.bd_cards.extend(bd_cards);
 
+        //TODO:new_1x1 return LAYOUT.2x2
         let players_view: HashMap<PlayerId, PlayerView> = players_data
             .into_iter()
             .map(|(id, player_data)| {
@@ -79,9 +78,7 @@ impl Gui {
                         PlayerView::new(
                             match_scene.get_child(1),
                             player_data,
-                            rect_down,
-                            rect_down.up_split_side(),
-                            rect_down.down_split_side(),
+                            &LAYOUT.match1x1.client,
                             PlayerType::Client,
                             true,
                         ),
@@ -92,10 +89,8 @@ impl Gui {
                         PlayerView::new(
                             match_scene.get_child(0),
                             player_data,
-                            rect_up,
-                            rect_up.down_split_side(),
-                            rect_up.up_split_side(),
-                            PlayerType::Opp,
+                            &LAYOUT.match1x1.opp,
+                            PlayerType::Opp1,
                             false,
                         ),
                     )
@@ -107,69 +102,65 @@ impl Gui {
             .iter()
             .map(|(id, state)| {
                 let view = if let Some(state) = state {
-                    CardView::FrontCardView(FrontCardView::new(owner, res, state.clone()))
+                    CardView::FrontCardView(FrontCardView::new(owner, &mut prefabs, state.clone()))
                 } else {
-                    CardView::BackCardView(BackCardView::new(owner, res))
+                    CardView::BackCardView(BackCardView::new(owner, &mut prefabs))
                 };
                 (*id, view)
             })
             .collect();
+        let mut gui = Self {
+            prefabs,
+            players_view,
+            cards_view,
+        };
+        players_state.iter().for_each(|(id, state)| {
+            gui.sort_tabel(id, state.get_hand());
+            gui.sort_hand(id, state.get_hand());
+        });
         (
-            Self {
-                players_view,
-                cards_view,
-            },
-            Store::new(
-                players_state
-                    .keys()
-                    .map(|id| (*id, FlagsForUpdate::all()))
-                    .collect(),
-                players_state,
-                cards,
-                server_api,
-                client_id,
-            ),
+            gui,
+            Store::new(players_state, cards, server_api, client_id, bd_cards),
         )
     }
     pub fn input(
         &mut self,
         sense: Sense,
         players_state: &HashMap<PlayerId, PlayerState>,
-        res: &mut Resources,
         selected_card: &mut SelectingCard,
     ) -> Option<Action> {
         // let drag_id = self.selecting_card.get_dragging_id();
-        self.players_view
-            .iter()
-            .find(|id_and_player| contains_rect(&sense.mouse_pos, &id_and_player.1.rect))
-            .map(|(id, view)| {
-                // let is_client = player.is_client();
-                // Response {
-                //     item: player.contains_child(
-                //         sense,
-                //         card_size,
-                //         if is_client { drag_id } else { None },
-                //     ),
-                //     player_id: *id,
-                //     click_up: sense.click_up,
-                //     click_down: sense.click_down,
-                //     is_client,
-                // }
+        // if let Some(component_type) = self
+        //     .players_view
+        //     .iter()
+        //     .find(|id_and_player| contains_rect(&sense.mouse_pos, &id_and_player.1.rect))
+        //     .map(|(id, view)| {
+        //         // let is_client = player.is_client();
+        //         // Response {
+        //         //     item: player.contains_child(
+        //         //         sense,
+        //         //         card_size,
+        //         //         if is_client { drag_id } else { None },
+        //         //     ),
+        //         //     player_id: *id,
+        //         //     click_up: sense.click_up,
+        //         //     click_down: sense.click_down,
+        //         //     is_client,
+        //         // }
 
-                let card_size = res.card_size();
-                let card_indent = res.card_indent();
-                //TODO: match player_type
-                let players_state = players_state.get(id).unwrap();
-                let input_type = view.contains_component(
-                    sense,
-                    players_state,
-                    card_size,
-                    card_indent,
-                    selected_card.get_id_if_dragging(),
-                );
-                self.input_handler(input_type, sense, selected_card)
-            })
-            .flatten()
+        //         //TODO: match player_type
+        //         let layout = match view.player_type() {
+        //             PlayerType::Client => &LAYOUT.match1x1.client,
+        //             _ => &LAYOUT.match1x1.opp, // PlayerType::Friendly => {}
+        //                                        // PlayerType::Opp => {}
+        //         };
+        //         view.contains_component(sense, players_state.get(id).unwrap(), layout)
+        //     })
+        {
+            godot_print!("{:?}", component_type);
+            return self.input_handler(component_type, sense, selected_card);
+        }
+        None
     }
     fn input_handler(
         &mut self,
@@ -255,6 +246,7 @@ impl Gui {
             }
         } else if selected_card.is_dragging() {
             if sense.click_up {
+                //drop
                 match input_type {
                     ComponentType::TabelCard(_) | ComponentType::Tabel => {
                         //cast to tabel
@@ -324,157 +316,67 @@ impl Gui {
         }
         None
     }
-    // pub fn update(
-    //     &mut self,
-    //     player_id: &PlayerId,
-    //     player_state: &PlayerState,
-    //     flags: &FlagsForUpdate,
-    //     res: &mut Resources,
-    //     exclude_card: Option<CardId>,
-    // ) {
-    //     // let player_view = self.players_view.get_mut(player_id).unwrap();
+    pub fn sort_hand(&mut self, player_id: &PlayerId, line: &Line) {
+        let line_center = match self.players_view.get_mut(player_id).unwrap().player_type() {
+            PlayerType::Client => LAYOUT.match1x1.client.hand.get_center(),
+            _ => LAYOUT.match1x1.opp.hand.get_center(), // PlayerType::Friendly => {}
+                                                        // PlayerType::Opp => {}
+        };
 
-    //     // if player_state.flags.deck {
-    //     //     player_view.deck.update();
-    //     // }
-    //     // if player_state.flags.factories {
-    //     //     player_view.factories.update();
-    //     // }
-    //     // if player_state.flags.character {
-    //     //     player_view.character.update();
-    //     // }
-    //     // if player_state.flags.equipment {
-    //     //     player_view.equipment.update();
-    //     // }
+        let card_size = LAYOUT.card.card_size;
+        let card_indent = LAYOUT.card.card_indent;
 
-    //     if flags.contains(FlagsForUpdate::HAND) {
-    //         let center = self
-    //             .players_view
-    //             .get_mut(player_id)
-    //             .unwrap()
-    //             .hand
-    //             .rect
-    //             .get_center();
-    //         let line = player_state.get_hand();
-    //         self.sort_line(
-    //             if exclude_card.is_some() {
-    //                 line.len_float() - 1.
-    //             } else {
-    //                 line.len_float()
-    //             },
-    //             line.get_cards(),
-    //             center,
-    //             res.card_size(),
-    //             res.card_indent(),
-    //             exclude_card,
-    //         );
-    //     }
-    //     if flags.contains(FlagsForUpdate::TABEL) {
-    //         let center = self
-    //             .players_view
-    //             .get_mut(player_id)
-    //             .unwrap()
-    //             .tabel
-    //             .rect
-    //             .get_center();
-    //         let line = player_state.get_tabel();
-    //         self.sort_line(
-    //             line.len_float(),
-    //             line.get_cards(),
-    //             center,
-    //             res.card_size(),
-    //             res.card_indent(),
-    //             exclude_card,
-    //         );
-    //     }
-    // }
-
-    pub fn sort_line(
-        &mut self,
-        line_len: f32,
-        // mut line_iter: Iter<CardId>,
-        line: &[CardId],
-        line_center: Vec2,
-        card_size: Vec2,
-        card_indent: Vec2,
-        exclude_card: Option<CardId>,
-    ) {
-        if let Some(exclude_card) = exclude_card {
-            if let Some((mut x, y)) =
-                alignment_line_point(line_center, line_len - 1., card_size, card_indent)
-            {
-                let x_indent = card_size.x + card_indent.x;
-
-                for i in 0..line.len() {
-                    let card_id = line.get(i).unwrap();
-                    if *card_id == exclude_card {
-                        continue;
-                    }
-
-                    self.get_mut_card(card_id).set_position(vec2(x, y));
-                    x += x_indent;
-                }
-                // for (idx, card_id) in line_iter.enumerate() {
-                //             if contains_card(sense.mouse_pos, card_size, x, y) {
-                //                 return Some((idx, *card_id));
-                //             }
-                //             //         // godot_print!(
-                //             //         //     "card input @:{} pos: {}-{},,, card_size x:{}, y;{}",
-                //             //         //     card_id,
-                //             //         //     x,
-                //             //         //     y,
-                //             //         //     sense.card_size.x,
-                //             //         //     sense.card_size.y,
-                //             //         // );
-                //             x += x_indent;
-                //         }
-                // // let mut iter = iter();
-                // for _ in 0..line_iter.len() {
-                //     self.get_mut_card(
-                //         line_iter
-                //             .next()
-                //             .map(|card_id| {
-                //                 if *card_id == exclude_card {
-                //                     return line_iter.next().unwrap();
-                //                 }
-                //                 card_id
-                //             })
-                //             .unwrap(),
-                //     )
-                //     .set_position(vec2(x, y));
-                //     // godot_print!(
-                //     //     "card set_pos @:{} pos: {}-{},,, card_size x:{}, y;{}",
-                //     //     *card_id,
-                //     //     x,
-                //     //     y,
-                //     //     card_size.x,
-                //     //     card_size.y,
-                //     // );
-                //     x += x_indent;
-                // }
-            }
-        } else if let Some((mut x, y)) =
-            alignment_line_point(line_center, line_len, card_size, card_indent)
+        if let Some((mut x, y)) =
+            alignment_line_point(line_center, line.len_float(), card_size, card_indent)
         {
             let x_indent = card_size.x + card_indent.x;
-            // for card_id in line_iter {
-            //     self.get_mut_card(card_id).set_position(vec2(x, y));
-            //     // godot_print!(
-            //     //     "card set_pos @:{} pos: {}-{},,, card_size x:{}, y;{}",
-            //     //     card_id,
-            //     //     x,
-            //     //     y,
-            //     //     card_size.x,
-            //     //     card_size.y,
-            //     // );
-            //     x += x_indent;
-            // }
+
             for i in 0..line.len() {
                 let card_id = line.get(i).unwrap();
 
-                self.get_mut_card(card_id).set_position(vec2(x, y));
+                self.get_mut_card(&card_id).set_position(vec2(x, y));
                 x += x_indent;
             }
+        }
+    }
+    pub fn sort_tabel(&mut self, player_id: &PlayerId, line: &Line) {
+        let line_center = match self.players_view.get_mut(player_id).unwrap().player_type() {
+            PlayerType::Client => LAYOUT.match1x1.client.tabel.get_center(),
+            _ => LAYOUT.match1x1.opp.tabel.get_center(), // PlayerType::Friendly => {}
+                                                         // PlayerType::Opp => {}
+        };
+
+        let card_size = LAYOUT.card.card_size;
+        let card_indent = LAYOUT.card.card_indent;
+
+        if let Some((mut x, y)) =
+            alignment_line_point(line_center, line.len_float(), card_size, card_indent)
+        {
+            let x_indent = card_size.x + card_indent.x;
+
+            for i in 0..line.len() {
+                let card_id = line.get(i).unwrap();
+
+                self.get_mut_card(&card_id).set_position(vec2(x, y));
+                x += x_indent;
+            }
+        }
+    }
+
+    pub fn create_card(&mut self, card_id: CardId, owner: &Node) {
+        self.cards_view.insert(
+            card_id,
+            CardView::BackCardView(BackCardView::new(owner, &mut self.prefabs)),
+        );
+    }
+    pub fn flip_card(&mut self, card_id: &CardId, owner: &Node, card_state: CardState) {
+        let card_view = self
+            .cards_view
+            .get_mut(card_id)
+            .expect("ERROR: Not foud card");
+        if card_view.is_back() {
+            let new_card_view = card_view.card_type_change(owner, &mut self.prefabs, card_state);
+            self.cards_view.insert(*card_id, new_card_view);
         }
     }
     pub fn get_mut_card(&mut self, card_id: &CardId) -> &mut CardView {
@@ -482,11 +384,16 @@ impl Gui {
             .get_mut(card_id)
             .expect("ERROR: Not foud card")
     }
+    pub fn get_player_type(&self, player_id: &PlayerId) -> PlayerType {
+        self.players_view.get(player_id).unwrap().player_type()
+    }
+    pub fn card_size(&self) -> Vec2 {
+        LAYOUT.card.card_size
+    }
 }
 
 pub struct PlayerView {
-    rect: Rect,
-    players_type: PlayerType,
+    player_type: PlayerType,
     tabel: LineView,
     hand: LineView,
     deck: DeckView,
@@ -504,34 +411,29 @@ impl PlayerView {
     pub fn new(
         player: Option<Ref<Node>>,
         player_data: PlayerData,
-        rect: Rect,
-        tabel_rect: Rect,
-        hand_rect: Rect,
-        players_type: PlayerType,
+        layout: &LayoutPlayer,
+        player_type: PlayerType,
         is_client: bool,
     ) -> Self {
         PlayerView {
-            // player_id: player_data.id.clone(),
-            rect,
-            players_type,
-            tabel: LineView::new(tabel_rect),
-            hand: LineView::new(hand_rect),
-            deck: DeckView::new(player, player_data.deck_name),
-            factories: FactoriesView::new(player, player_data.factories_name),
-            equipment: EquipmentView::new(player, player_data.equipment_name),
-            character: CharacterView::new(player, player_data.character_name),
+            player_type,
+            tabel: LineView::new(),
+            hand: LineView::new(),
+            deck: DeckView::new(player, layout.deck, player_data.deck_name),
+            factories: FactoriesView::new(player, layout.factories, player_data.factories_name),
+            equipment: EquipmentView::new(player, layout.equipment, player_data.equipment_name),
+            character: CharacterView::new(player, layout.character, player_data.character_name),
             // avatar:
             // data: player_data.data,
             // is_client,
+            // player_id: player_data.id.clone(),
         }
     }
     pub fn contains_component(
         &self,
         sense: Sense,
         player_state: &PlayerState,
-        card_size: Vec2,
-        card_indent: Vec2,
-        exclude_card: Option<CardId>,
+        layout: &LayoutPlayer,
     ) -> ComponentType {
         // if match self.player_type {
         //     PlayerType::Client => sense.mouse_x > self.rect.center_x,
@@ -539,59 +441,35 @@ impl PlayerView {
         //     PlayerType::Remote => sense.mouse_x > self.rect.center_x,
         // }
         if sense.mouse_pos.x > self.rect.center_x {
-            if contains_rect(&sense.mouse_pos, &self.equipment.rect) {
+            if contains_rect(&sense.mouse_pos, &layout.equipment) {
                 return ComponentType::Equipment;
-            } else if contains_rect(&sense.mouse_pos, &self.character.rect) {
+            } else if contains_rect(&sense.mouse_pos, &layout.character) {
                 return ComponentType::Character;
             }
-        } else if contains_rect(&sense.mouse_pos, &self.deck.rect) {
+        } else if contains_rect(&sense.mouse_pos, &layout.deck) {
             return ComponentType::Deck;
-        } else if contains_rect(&sense.mouse_pos, &self.factories.rect) {
+        } else if contains_rect(&sense.mouse_pos, &layout.factories) {
             return ComponentType::Factories;
         }
-        if contains_rect(&sense.mouse_pos, &self.hand.rect) {
-            let line = player_state.get_hand();
-            return if let Some(exclude_card) = exclude_card {
-                if let Some((idx, card_id)) = contains_cards_on_line(
-                    sense,
-                    line.len_float() - 1.,
-                    line.iter(),
-                    self.hand.rect.get_center(),
-                    card_size,
-                    card_indent,
-                ) {
-                    if exclude_card == card_id {
-                        return if let Some(next_card_id) = line.get(idx + 1) {
-                            ComponentType::HandCard(next_card_id)
-                        } else {
-                            ComponentType::Hand
-                        };
-                    }
-                    ComponentType::HandCard(card_id)
-                } else {
-                    ComponentType::Hand
-                }
-            } else if let Some((idx, card_id)) = contains_cards_on_line(
+        if contains_rect(&sense.mouse_pos, &layout.hand) {
+            if let Some(card_id) = contains_cards_on_line(
                 sense,
-                line.len_float(),
-                line.iter(),
-                self.hand.rect.get_center(),
-                card_size,
-                card_indent,
+                player_state.get_hand(),
+                layout.hand.get_center(),
+                LAYOUT.card.card_size,
+                LAYOUT.card.card_indent,
             ) {
                 ComponentType::HandCard(card_id)
             } else {
                 ComponentType::Hand
             };
-        } else if contains_rect(&sense.mouse_pos, &self.tabel.rect) {
-            let line = player_state.get_tabel();
-            return if let Some((_, card_id)) = contains_cards_on_line(
+        } else if contains_rect(&sense.mouse_pos, &layout.tabel) {
+            return if let Some(card_id) = contains_cards_on_line(
                 sense,
-                line.len_float(),
-                line.iter(),
-                self.tabel.rect.get_center(),
-                card_size,
-                card_indent,
+                player_state.get_tabel(),
+                layout.tabel.get_center(),
+                LAYOUT.card.card_size,
+                LAYOUT.card.card_indent,
             ) {
                 ComponentType::TabelCard(card_id)
             } else {
@@ -600,23 +478,25 @@ impl PlayerView {
         }
         ComponentType::None
     }
+    pub fn player_type(&self) -> PlayerType {
+        self.player_type
+    }
 }
 pub struct LineView {
-    rect: Rect,
+    // rect: Rect,
 }
 impl LineView {
-    pub fn new(rect: Rect) -> Self {
-        Self { rect }
+    pub fn new() -> Self {
+        Self {}
     }
 }
 pub struct EquipmentView {
-    rect: Rect,
     label_name: Ref<Label>,
     label_count: Ref<Label>,
 }
 impl EquipmentView {
-    pub fn new(player: Option<Ref<Node>>, texture: String) -> Self {
-        let (items, rect) = player_component(player, "Items".to_owned(), texture);
+    pub fn new(player: Option<Ref<Node>>, rect: Rect, texture: String) -> Self {
+        let items = player_component(player, "Items".to_owned(), rect, texture);
         let label_name = items
             .get_child(0)
             .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
@@ -629,7 +509,6 @@ impl EquipmentView {
             .claim();
         godot_print!("Items create: {}", rect);
         Self {
-            rect,
             label_name,
             label_count,
         }
@@ -637,13 +516,12 @@ impl EquipmentView {
     pub fn update(&mut self) {}
 }
 pub struct CharacterView {
-    rect: Rect,
     label_name: Ref<Label>,
     label_healty: Ref<Label>,
 }
 impl CharacterView {
-    pub fn new(player: Option<Ref<Node>>, texture: String) -> Self {
-        let (char, rect) = player_component(player, "Character".to_owned(), texture);
+    pub fn new(player: Option<Ref<Node>>, rect: Rect, texture: String) -> Self {
+        let char = player_component(player, "Character".to_owned(), rect, texture);
         let label_name = char
             .get_child(0)
             .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
@@ -656,7 +534,6 @@ impl CharacterView {
             .claim();
         godot_print!("Character create: {}", rect);
         Self {
-            rect,
             label_name,
             label_healty,
         }
@@ -664,14 +541,13 @@ impl CharacterView {
     pub fn update(&mut self) {}
 }
 pub struct DeckView {
-    rect: Rect,
     label_card_deck: Ref<Label>,
     label_dead_deck: Ref<Label>,
 }
 
 impl DeckView {
-    pub fn new(player: Option<Ref<Node>>, texture: String) -> Self {
-        let (deck, rect) = player_component(player, "Deck".to_owned(), texture);
+    pub fn new(player: Option<Ref<Node>>, rect: Rect, texture: String) -> Self {
+        let deck = player_component(player, "Deck".to_owned(), rect, texture);
         let label_card_deck = deck
             .get_child(0)
             .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
@@ -684,7 +560,6 @@ impl DeckView {
             .claim();
         godot_print!("Deck create: {}", rect);
         Self {
-            rect,
             label_card_deck,
             label_dead_deck,
         }
@@ -692,7 +567,6 @@ impl DeckView {
     pub fn update(&mut self) {}
 }
 pub struct FactoriesView {
-    rect: Rect,
     label_red: Ref<Label>,
     label_blue: Ref<Label>,
     label_green: Ref<Label>,
@@ -700,11 +574,9 @@ pub struct FactoriesView {
     label_black: Ref<Label>,
 }
 impl FactoriesView {
-    pub fn new(player: Option<Ref<Node>>, texture: String) -> Self {
-        let (builds, rect) = player_component(player, "Builds".to_owned(), texture);
-
+    pub fn new(player: Option<Ref<Node>>, rect: Rect, texture: String) -> Self {
+        let builds = player_component(player, "Builds".to_owned(), rect, texture);
         Self {
-            rect,
             label_red: builds
                 .get_node("Red")
                 .and_then(|scene| unsafe { scene.assume_safe().cast::<Label>() })
@@ -750,8 +622,9 @@ impl FactoriesView {
 fn player_component<'a>(
     player: Option<Ref<Node, Shared>>,
     name: String,
+    rect: Rect,
     texture: String,
-) -> (TRef<'a, TextureRect>, Rect) {
+) -> TRef<'a, TextureRect> {
     let scene = player
         .and_then(|scene| unsafe { scene.assume_safe() }.get_node(name))
         .and_then(|scene| unsafe { scene.assume_safe().cast::<TextureRect>() })
@@ -769,9 +642,9 @@ fn player_component<'a>(
             scene
         })
         .expect("Couldn't load sprite texture");
-    let pos = scene.global_position();
-    let size = scene.size();
-    (scene, Rect::new(pos.x, pos.y, size.x, size.y))
+    scene.set_global_position(rect.point(), false);
+    scene.set_size(rect.size(), false);
+    scene
 }
 // fn avatar( player: Option<Ref<Node>>, texture: String, pos: Vec2) -> Deck {
 //     let deck = player_component(player, "Avatar", texture);

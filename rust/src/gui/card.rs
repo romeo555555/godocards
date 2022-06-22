@@ -12,7 +12,7 @@ use gdnative::{
 };
 
 use crate::{
-    resources::Resources,
+    resources::Prefabs,
     utils::{vec2, Vec2},
 };
 
@@ -21,13 +21,18 @@ pub enum CardView {
     BackCardView(BackCardView),
 }
 impl CardView {
-    pub fn card_type_change(self, owner: &Node, res: &mut Resources, state: CardState) -> Self {
+    pub fn card_type_change(
+        &mut self,
+        owner: &Node,
+        prefabs: &mut Prefabs,
+        state: CardState,
+    ) -> Self {
         match self {
             Self::FrontCardView(front) => {
                 let card_node = unsafe { front.node.assume_unique() };
                 let pos = card_node.global_position();
                 card_node.queue_free();
-                let back = BackCardView::new(owner, res);
+                let back = BackCardView::new(owner, prefabs);
                 let card_node = unsafe { back.node.assume_unique() };
                 card_node.set_global_position(pos, false);
                 Self::BackCardView(back)
@@ -36,22 +41,25 @@ impl CardView {
                 let card_node = unsafe { back.node.assume_unique() };
                 let pos = card_node.global_position();
                 card_node.queue_free();
-                let front = FrontCardView::new(owner, res, state);
+                let front = FrontCardView::new(owner, prefabs, state);
                 let card_node = unsafe { front.node.assume_unique() };
                 card_node.set_global_position(pos, false);
                 Self::FrontCardView(front)
             }
         }
     }
+    pub fn is_back(&self) -> bool {
+        match self {
+            &CardView::BackCardView(_) => true,
+            &CardView::FrontCardView(_) => false,
+        }
+    }
     pub fn set_position(&mut self, pos: Vec2) {
         match self {
-            CardView::BackCardView(back) => {
-                unsafe { back.node.assume_safe() }.set_global_position(pos, false)
-            }
-            CardView::FrontCardView(front) => {
-                unsafe { front.node.assume_safe() }.set_global_position(pos, false)
-            }
-        };
+            CardView::BackCardView(back) => unsafe { back.node.assume_safe() },
+            CardView::FrontCardView(front) => unsafe { front.node.assume_safe() },
+        }
+        .set_global_position(pos, false);
     }
     pub fn hovered_on(&mut self, card_offset: Vec2) -> Vec2 {
         let node = match self {
@@ -61,7 +69,7 @@ impl CardView {
         let cached_pos = node.global_position();
         // z-index +1
         node.set_scale(vec2(1.5, 1.5));
-        node.set_global_position(card_offset + cached_pos, false); //pos - card_offset
+        node.set_global_position(cached_pos - card_offset, false); //pos - card_offset
 
         cached_pos
     }
@@ -80,8 +88,8 @@ pub struct BackCardView {
     node: Ref<Control>,
 }
 impl BackCardView {
-    pub fn new(owner: &Node, res: &mut Resources) -> Self {
-        let prefab_card = res.prefab_card.take().unwrap();
+    pub fn new(owner: &Node, prefabs: &mut Prefabs) -> Self {
+        let prefab_card = prefabs.card.take().unwrap();
         let prefab_obj = unsafe { prefab_card.assume_safe() };
         let card_node = prefab_obj
             .instance(0)
@@ -95,7 +103,7 @@ impl BackCardView {
         owner.add_child(card_node, false);
         //name load json
         //load stats
-        res.prefab_card.replace(prefab_obj.claim());
+        prefabs.card.replace(prefab_obj.claim());
         Self {
             node: card_node.claim(),
         }
@@ -109,10 +117,10 @@ pub struct FrontCardView {
     state: CardStateView,
 }
 impl FrontCardView {
-    pub fn new(owner: &Node, res: &mut Resources, state: CardState) -> Self {
+    pub fn new(owner: &Node, prefabs: &mut Prefabs, state: CardState) -> Self {
         let card_node: TRef<Control> = match state.card_type {
             CardType::Unit(_) => {
-                let prefab_card_unit = res.prefab_card_unit.take().unwrap();
+                let prefab_card_unit = prefabs.card_unit.take().unwrap();
                 let prefab_obj = unsafe { prefab_card_unit.assume_safe() };
                 let card_unit_node = prefab_obj
                     .instance(0)
@@ -123,11 +131,11 @@ impl FrontCardView {
                 //name load json
                 //load stats
 
-                res.prefab_card_unit.replace(prefab_obj.claim());
+                prefabs.card_unit.replace(prefab_obj.claim());
                 card_unit_node
             }
             _ => {
-                let prefab_card_spell = res.prefab_card_spell.take().unwrap();
+                let prefab_card_spell = prefabs.card_spell.take().unwrap();
                 let prefab_obj = unsafe { prefab_card_spell.assume_safe() };
                 let card_spell_node = prefab_obj
                     .instance(0)
@@ -141,7 +149,7 @@ impl FrontCardView {
                 owner.add_child(card_spell_node, false);
                 //name load json
                 //load stats
-                res.prefab_card_spell.replace(prefab_obj.claim());
+                prefabs.card_spell.replace(prefab_obj.claim());
                 card_spell_node
             }
         };
@@ -170,7 +178,7 @@ impl FrontCardView {
                     cost.into_iter()
                         .enumerate()
                         .map(|(i, mana)| {
-                            let prefab_mana = res.prefab_mana.take().unwrap();
+                            let prefab_mana = prefabs.mana.take().unwrap();
                             let prefab_obj = unsafe { prefab_mana.assume_safe() };
                             let mana_node = prefab_obj
                                 .instance(0)
@@ -182,7 +190,7 @@ impl FrontCardView {
                                 vec2(150. - (35. * f32::value_from(i + 1).unwrap()), 0.),
                                 false,
                             );
-                            res.prefab_mana.replace(prefab_obj.claim());
+                            prefabs.mana.replace(prefab_obj.claim());
                             Self::new_mana(mana_node, mana)
                         })
                         .collect()

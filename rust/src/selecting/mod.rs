@@ -14,7 +14,6 @@ use common::{
 use crate::{
     gui::Gui,
     input_action::Sense,
-    resources::Resources,
     utils::{contains_card, vec2, Vec2},
 };
 
@@ -78,13 +77,13 @@ impl SelectingCard {
     pub fn cached_hovered_clean(&mut self) {
         self.cached_hovered_card = None;
     }
-    pub fn update_selected(&mut self, mouse_pos: Vec2, card_size: Vec2, gui: &mut Gui) {
+    pub fn update_selected(&mut self, mouse_pos: Vec2, gui: &mut Gui) {
         let card_offset = vec2(0., 30.);
         match self.get_state() {
             SelectedState::Dragging(card_id) => {
                 if let Some((cached_card, pos)) = self.cached_hovered() {
                     // reset
-                    if !contains_card(mouse_pos, card_size, pos.x, pos.y) {
+                    if !contains_card(mouse_pos, gui.card_size(), pos.x, pos.y) {
                         gui.get_mut_card(cached_card).hovered_off(*pos);
                         self.cached_hovered_clean();
                     }
@@ -96,20 +95,21 @@ impl SelectingCard {
                 if let Some((cached_card, pos)) = self.cached_hovered() {
                     //reset + set
                     if card_id != cached_card {
-                        gui.get_mut_card(cached_card).hovered_off(card_offset);
-                        gui.get_mut_card(card_id).hovered_on(mouse_pos);
-                        self.set_cached_hovered(*card_id, mouse_pos);
+                        gui.get_mut_card(cached_card).hovered_off(*pos);
+                        let cached_pos = gui.get_mut_card(card_id).hovered_on(card_offset);
+                        self.set_cached_hovered(*card_id, cached_pos);
                     }
                 } else {
                     //set
-                    gui.get_mut_card(card_id).hovered_on(mouse_pos);
-                    self.set_cached_hovered(*card_id, mouse_pos);
+                    let cached_pos = gui.get_mut_card(card_id).hovered_on(card_offset);
+                    self.set_cached_hovered(*card_id, cached_pos);
                 }
+                self.drop()
             }
             SelectedState::None => {
                 if let Some((cached_card, pos)) = self.cached_hovered() {
                     // reset
-                    if !contains_card(mouse_pos, card_size, pos.x, pos.y) {
+                    if !contains_card(mouse_pos, gui.card_size(), pos.x, pos.y) {
                         gui.get_mut_card(cached_card).hovered_off(*pos);
                         self.cached_hovered_clean();
                     }

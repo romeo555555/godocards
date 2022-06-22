@@ -15,26 +15,27 @@ pub fn switch_visible(owner: &Node, idx: i64) {
 }
 pub fn contains_cards_on_line(
     sense: Sense,
-    line_len: f32,
-    line_iter: Iter<CardId>,
+    line: &Line,
     line_center: Vec2,
     card_size: Vec2,
     card_indent: Vec2,
-) -> Option<(usize, CardId)> {
-    if let Some((mut x, y)) = alignment_line_point(line_center, line_len, card_size, card_indent) {
+) -> Option<CardId> {
+    if let Some((mut x, y)) =
+        alignment_line_point(line_center, line.len_float(), card_size, card_indent)
+    {
         let x_indent = card_size.x + card_indent.x;
-        for (idx, card_id) in line_iter.enumerate() {
+        for card_id in line.iter() {
             if contains_card(sense.mouse_pos, card_size, x, y) {
-                return Some((idx, *card_id));
+                return Some(*card_id);
             }
-            //         // godot_print!(
-            //         //     "card input @:{} pos: {}-{},,, card_size x:{}, y;{}",
-            //         //     card_id,
-            //         //     x,
-            //         //     y,
-            //         //     sense.card_size.x,
-            //         //     sense.card_size.y,
-            //         // );
+            godot_print!(
+                "card input @:{} pos: {}-{},,, card_size x:{}, y;{}",
+                card_id,
+                x,
+                y,
+                card_size.x,
+                card_size.y,
+            );
             x += x_indent;
         }
     }

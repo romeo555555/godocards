@@ -120,15 +120,16 @@ impl GameMatch {
             }
             ClientAction::FlipCard(card_id, hash_card) => {}
             ClientAction::CastCardOnTabel(card_id) => {
+                let player_id = self.network.get_sub_id(endpoint);
                 let card = self.cards.get(&card_id).unwrap();
                 //card_cost
                 let hash_card = card.hash.clone();
                 self.network.send_msg_for_all(&ServerMessage::build(
-                    msg.player_id,
+                    player_id,
                     ServerAction::CastCardOnTabel(card_id),
                 ));
                 self.network.send_msg_for_all(&ServerMessage::build(
-                    msg.player_id,
+                    player_id,
                     ServerAction::FlipCard(card_id, hash_card),
                 ));
             }
@@ -243,7 +244,7 @@ impl GameMatch {
         self.players_state
             .get_mut(player_id)
             .unwrap()
-            .push_hand(card_id);
+            .add_on_hand(card_id);
         let state = self.get_random_card_state();
         let hash_card = state.hash.clone();
         self.cards.insert(card_id, state);

@@ -14,9 +14,9 @@ pub struct PlayerState {
     tabel: Line,
     hand: Line,
     deck: DeckState,
+    factories: FactoriesState,
     equipment: EquipmentState,
     character: CharacterState,
-    factories: FactoriesState,
 }
 impl PlayerState {
     pub const CAPACITY_CARD_ON_TABEL: usize = 8;
@@ -43,26 +43,6 @@ impl PlayerState {
     //     vec
     // }
     //del?
-    pub fn push_hand(&mut self, card_id: CardId) {
-        // self.flags = Some(if let Some(flags) = self.flags.take() {
-        //     FlagsForUpdate {
-        //         hand: true,
-        //         ..flags
-        //     }
-        // } else {
-        //     FlagsForUpdate {
-        //         hand: true,
-        //         ..FlagsForUpdate::all_false()
-        //     }
-        // });
-        // self.flags.player = true;
-        // self.flags.hand = true;
-        self.hand.add_card(card_id);
-    }
-
-    pub fn push_tabel(&mut self, card_id: CardId) {
-        self.tabel.add_card(card_id);
-    }
     pub fn need_update(&mut self) -> bool {
         // self.flags.player
         true
@@ -77,15 +57,13 @@ impl PlayerState {
     // // pub fn add_card_on_tabel(&mut self, card_id: CardId) {
     // //     self.tabel.add_card(card_id);
     // // }
-    // pub fn cast_on_tabel(&mut self, card_id: CardId) {
-    //     self.hand.remove_card(card_id);
-    //     self.tabel.add_card(card_id);
-    // }
-    // //remove_card_on_tabel
-    // pub fn add_card_on_hand(&mut self, card_id: CardId) {
-    //     // hash_card:Option<HashCard>
-    //     self.hand.add_card(card_id);
-    // }
+    pub fn cast_on_tabel(&mut self, card_id: CardId) {
+        self.hand.remove_card(card_id);
+        self.tabel.add_card(card_id);
+    }
+    pub fn add_on_hand(&mut self, card_id: CardId) {
+        self.hand.add_card(card_id);
+    }
     // // pub fn swap_card_on_hand(&mut self, origin_draw_id: CardId, target_card_id: CardId) {
     // //     self.hand.swap_card(origin_draw_id, target_card_id);
     // // }
@@ -189,6 +167,9 @@ impl Line {
             self.count -= 1.;
             self.cards.remove(idx);
         }
+    }
+    pub fn len(&self) -> usize {
+        self.cards.len()
     }
     pub fn len_float(&self) -> f32 {
         self.count

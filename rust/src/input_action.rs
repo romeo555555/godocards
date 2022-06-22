@@ -67,7 +67,8 @@ pub enum ComponentType {
 pub enum PlayerType {
     Client,
     Friendly,
-    Opp,
+    Opp1,
+    Opp2,
 }
 // #[derive(Clone, Copy, Debug)]
 // pub enum ResponseType {

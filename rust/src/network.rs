@@ -77,7 +77,8 @@ impl Network {
     }
     pub fn send_msg(&mut self, action: ClientAction) {
         godot_print!("send event : {:?}", action);
-        self.event.push(ClientMessage::build(action));
+        // self.event.push(ClientMessage::build(action));
+        self._server.call(ClientMessage { action });
     }
 
     pub fn receive_event(&mut self) -> Option<ServerMessage> {

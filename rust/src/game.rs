@@ -19,7 +19,7 @@ use gdnative::prelude::*;
 pub struct Game {
     //selected_card
     selecting_card: SelectingCard,
-    resources: Resources,
+    prefabs: Option<Prefabs>,
     game_match: Option<Match>,
 }
 
@@ -32,15 +32,15 @@ impl Game {
         godot_print!("Game is created!");
         Self {
             selecting_card: SelectingCard::new(),
+            prefabs: None,
             game_match: None,
-            resources: Resources::default(),
         }
     }
     #[export]
     unsafe fn _ready(&mut self, owner: &Node) {
         logger::init(logger::Level::Info, logger::Output::File("log.txt")); //logger::Output::Stdout);
         log::info!("Game is ready!");
-        self.resources.load_prefabs_and_config(owner);
+        // self.prefabs.init();
         godot_print!("Game is ready!");
     }
     #[export]
@@ -63,12 +63,11 @@ impl Game {
         if let Some(ref mut game_match) = self.game_match {
             log::info!("Cococclosing server");
             game_match.proceess(
-                owner,
-                &mut self.resources,
                 owner
                     .cast::<CanvasItem>()
                     .map(|node| node.get_global_mouse_position())
                     .unwrap(),
+                owner,
                 &mut self.selecting_card,
             )
         }
@@ -78,7 +77,6 @@ impl Game {
     fn _on_Match_pressed(&mut self, owner: &Node) {
         self.game_match = Some(Match::new(
             owner,
-            &mut self.resources,
             PlayerData {
                 name: "juja".to_owned(),
                 deck_name: "deck".to_owned(),
@@ -107,10 +105,10 @@ pub struct Match {
     gui: Gui,
 }
 impl Match {
-    pub fn new(owner: &Node, res: &mut Resources, player_data: PlayerData) -> Self {
+    pub fn new(owner: &Node, player_data: PlayerData) -> Self {
         switch_visible(owner, 1i64);
         let (server_api, match_info, network) = Network::new(player_data);
-        let (gui, store) = Gui::new(owner, res, match_info, server_api);
+        let (gui, store) = Gui::new(owner, match_info, server_api);
 
         Self {
             network,
@@ -118,22 +116,16 @@ impl Match {
             gui,
         }
     }
-    pub fn proceess(
-        &mut self,
-        owner: &Node,
-        res: &mut Resources,
-        mouse_pos: Vec2,
-        selected_card: &mut SelectingCard,
-    ) {
+    pub fn proceess(&mut self, mouse_pos: Vec2, owner: &Node, selected_card: &mut SelectingCard) {
         if let Some(action) = self.gui.input(
             Sense::new(mouse_pos),
             self.store.get_players_state_map(),
-            res,
             selected_card,
         ) {
             godot_print!("recive event : {:?}", action); //log
             dispatch(
                 action,
+                owner,
                 &mut self.store,
                 &mut self.gui,
                 &mut self.network,
@@ -144,13 +136,14 @@ impl Match {
             godot_print!("recive event : {:?}", action); //log
             dispatch(
                 action,
+                owner,
                 &mut self.store,
                 &mut self.gui,
                 &mut self.network,
                 selected_card,
             );
         };
-        selected_card.update_selected(mouse_pos, res.card_size(), &mut self.gui);
+        selected_card.update_selected(mouse_pos, &mut self.gui);
     }
 }
 // fn init(node: Node, world: &mut World) {
