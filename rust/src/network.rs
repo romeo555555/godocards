@@ -50,7 +50,7 @@ pub struct Network {
     event: Vec<ClientMessage>,
 }
 impl Network {
-    pub fn new(player_client: PlayerData) -> (ServerApi, MatchInfo, Self) {
+    pub fn new(player_client: PlayerData) -> (MatchInfo, Self) {
         let event_queue = EventReceiver::default();
         let mut match_reciver = EventReceiver::default(); //?mut
 
@@ -65,7 +65,6 @@ impl Network {
         let match_info = match_reciver.receive();
         let client_id = match_info.client_id;
         (
-            server.api(client_id),
             match_info,
             Self {
                 event_queue,

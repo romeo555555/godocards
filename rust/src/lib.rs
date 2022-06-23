@@ -1,24 +1,22 @@
 mod game;
 mod gui;
-mod input_action;
+mod input;
+mod layout;
 mod network;
-// mod reducer;
 mod resources;
-mod selecting;
 mod store;
 mod utils;
 
 use game::*;
 use gui::*;
-use input_action::*;
+use input::*;
+use layout::*;
 use network::*;
-// use reducer::*;
 use resources::*;
-use selecting::*;
 use store::*;
 use utils::*;
 
-use gdnative::prelude::{godot_init, InitHandle};
+use gdnative::prelude::{godot_init, InitHandle, Input as GodoInput};
 
 // Function that registers all exposed classes to Godot
 fn init(handle: InitHandle) {

@@ -1,10 +1,17 @@
 use std::collections::HashMap;
 
 use crate::{
-    gui::*, input_action::*, network::*, resources::*, selecting::*, store::*, store::*, utils::*,
+    gui::*,
+    input::{self, *},
+    layout::*,
+    network::*,
+    resources::*,
+    store::*,
+    store::*,
+    utils::*,
 };
 use common::{game_match::MatchInfo, player::PlayerData};
-use gdnative::prelude::*;
+use gdnative::prelude::{Input as GodoInput, *};
 // enum State {
 //     Auth,
 //     Main,
@@ -18,7 +25,8 @@ use gdnative::prelude::*;
 #[register_with(Self::register_builder)]
 pub struct Game {
     //selected_card
-    selecting_card: SelectingCard,
+    // selecting_card: SelectingCard,
+    input: crate::input::Input,
     prefabs: Option<Prefabs>,
     game_match: Option<Match>,
 }
@@ -31,7 +39,8 @@ impl Game {
     fn new(_owner: &Node) -> Self {
         godot_print!("Game is created!");
         Self {
-            selecting_card: SelectingCard::new(),
+            // selecting_card: SelectingCard::new(),
+            input: crate::input::Input::new(),
             prefabs: None,
             game_match: None,
         }
@@ -60,16 +69,10 @@ impl Game {
         //     position.x += velocity.x;
         //     position.y += velocity.y;
         // }
+        self.input.update(owner);
         if let Some(ref mut game_match) = self.game_match {
             log::info!("Cococclosing server");
-            game_match.proceess(
-                owner
-                    .cast::<CanvasItem>()
-                    .map(|node| node.get_global_mouse_position())
-                    .unwrap(),
-                owner,
-                &mut self.selecting_card,
-            )
+            game_match.proceess(owner, &mut self.input)
         }
     }
     //Button does'nt work witch touuch
@@ -99,37 +102,42 @@ impl Game {
     fn _on_Exit_pressed(&mut self, _owner: &Node) {}
 }
 
+pub enum MatchType {
+    Match1x1,
+    Match2x2,
+}
 pub struct Match {
     network: Network,
+    layout: Layout,
     store: Store,
     gui: Gui,
 }
 impl Match {
     pub fn new(owner: &Node, player_data: PlayerData) -> Self {
         switch_visible(owner, 1i64);
-        let (server_api, match_info, network) = Network::new(player_data);
-        let (gui, store) = Gui::new(owner, match_info, server_api);
+        let (match_info, network) = Network::new(player_data);
+        let (gui, store, layout) = Gui::new(owner, match_info);
 
         Self {
             network,
+            layout,
             store,
             gui,
         }
     }
-    pub fn proceess(&mut self, mouse_pos: Vec2, owner: &Node, selected_card: &mut SelectingCard) {
-        if let Some(action) = self.gui.input(
-            Sense::new(mouse_pos),
-            self.store.get_players_state_map(),
-            selected_card,
-        ) {
+    pub fn proceess(&mut self, owner: &Node, input: &mut crate::input::Input) {
+        let player_type = self.layout.contains_player(input);
+        let player_state = self.store.get_player_state_from_type(&player_type);
+        if let Some(action) = self.layout.input(input, player_type, player_state) {
             godot_print!("recive event : {:?}", action); //log
             dispatch(
                 action,
                 owner,
+                input,
                 &mut self.store,
                 &mut self.gui,
                 &mut self.network,
-                selected_card,
+                &self.layout,
             );
         }
         if let Some(action) = self.network.receive_action() {
@@ -137,13 +145,14 @@ impl Match {
             dispatch(
                 action,
                 owner,
+                input,
                 &mut self.store,
                 &mut self.gui,
                 &mut self.network,
-                selected_card,
+                &self.layout,
             );
         };
-        selected_card.update_selected(mouse_pos, &mut self.gui);
+        input.update_selected(&mut self.gui);
     }
 }
 // fn init(node: Node, world: &mut World) {

@@ -151,13 +151,6 @@ pub struct Line {
     count: f32,
 }
 impl Line {
-    // bool flags?
-    // pub fn exclude_card(&mut self) {
-    //     self.count -= 1.;
-    // }
-    // pub fn include_card(&mut self) {
-    //     self.count += 1.;
-    // }
     pub fn add_card(&mut self, card_id: CardId) {
         self.count += 1.;
         self.cards.push(card_id);

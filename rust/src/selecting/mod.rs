@@ -13,7 +13,7 @@ use common::{
 
 use crate::{
     gui::Gui,
-    input_action::Sense,
+    input::Sense,
     utils::{contains_card, vec2, Vec2},
 };
 

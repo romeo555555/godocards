@@ -230,7 +230,7 @@ impl CardStateBuilder {
             (
                 "wizard1".to_owned(),
                 CardStateBuilder::build(
-                    "wizard".to_owned(),
+                    "wizard1".to_owned(),
                     vec![Mana {
                         count: rand::thread_rng().gen_range(0..=9),
                         mana_form: ManaForm::Three([
@@ -245,7 +245,7 @@ impl CardStateBuilder {
             (
                 "wizard2".to_owned(),
                 CardStateBuilder::build(
-                    "wizard".to_owned(),
+                    "wizard2".to_owned(),
                     vec![Mana {
                         count: rand::thread_rng().gen_range(0..=9),
                         mana_form: ManaForm::Three([

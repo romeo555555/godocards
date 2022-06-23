@@ -1,12 +1,11 @@
 use common::{card::CardId, player::Line};
 // use gdnative::api::*;
-use gdnative::prelude::*;
+use gdnative::prelude::{Input as GodoInput, *};
 use std::{fmt, slice::Iter};
 
-use crate::input_action::Sense;
+use crate::input::Input;
 pub mod logger;
 
-// use crate::input::Sense;
 pub fn switch_visible(owner: &Node, idx: i64) {
     let node = unsafe { owner.get_child(idx).expect("Missing node").assume_safe() }
         .cast::<CanvasItem>()
@@ -14,7 +13,7 @@ pub fn switch_visible(owner: &Node, idx: i64) {
     node.set_visible(!node.is_visible());
 }
 pub fn contains_cards_on_line(
-    sense: Sense,
+    input: &Input,
     line: &Line,
     line_center: Vec2,
     card_size: Vec2,
@@ -25,17 +24,17 @@ pub fn contains_cards_on_line(
     {
         let x_indent = card_size.x + card_indent.x;
         for card_id in line.iter() {
-            if contains_card(sense.mouse_pos, card_size, x, y) {
+            if contains_card(input.mouse_pos(), card_size, x, y) {
                 return Some(*card_id);
             }
-            godot_print!(
-                "card input @:{} pos: {}-{},,, card_size x:{}, y;{}",
-                card_id,
-                x,
-                y,
-                card_size.x,
-                card_size.y,
-            );
+            // godot_print!(
+            //     "card input @:{} pos: {}-{},,, card_size x:{}, y;{}",
+            //     card_id,
+            //     x,
+            //     y,
+            //     card_size.x,
+            //     card_size.y,
+            // );
             x += x_indent;
         }
     }

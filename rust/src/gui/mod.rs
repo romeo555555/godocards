@@ -27,12 +27,7 @@ use gdnative::{api::Texture, prelude::godot_print};
 use nanoserde::{DeBin, SerBin};
 use std::collections::VecDeque;
 use std::{cmp::Ordering, ops::Add};
-mod layout;
-use layout::*;
 
-lazy_static! {
-    static ref LAYOUT: Layout = Layout::new();
-}
 pub struct Gui {
     prefabs: Prefabs,
     players_view: HashMap<PlayerId, PlayerView>,
@@ -42,9 +37,8 @@ impl Gui {
     pub fn new(
         owner: &Node,
         match_info: MatchInfo,
-        server_api: ServerApi,
         // client_id: PlayerId,
-    ) -> (Self, Store) {
+    ) -> (Self, Store, Layout) {
         let mut prefabs = Prefabs::init(); //TODO:Up on ierarhi and in Option<Prefabs>
         let match_scene = ResourceLoader::godot_singleton()
             .load("res://Match.tscn", "PackedScene", false)
@@ -69,6 +63,7 @@ impl Gui {
         } = match_info;
 
         //TODO:new_1x1 return LAYOUT.2x2
+        let layout = Layout::new(MatchType::Match1x1);
         let players_view: HashMap<PlayerId, PlayerView> = players_data
             .into_iter()
             .map(|(id, player_data)| {
@@ -78,7 +73,7 @@ impl Gui {
                         PlayerView::new(
                             match_scene.get_child(1),
                             player_data,
-                            &LAYOUT.match1x1.client,
+                            &layout.client,
                             PlayerType::Client,
                             true,
                         ),
@@ -89,7 +84,7 @@ impl Gui {
                         PlayerView::new(
                             match_scene.get_child(0),
                             player_data,
-                            &LAYOUT.match1x1.opp,
+                            &layout.opp1,
                             PlayerType::Opp1,
                             false,
                         ),
@@ -115,254 +110,20 @@ impl Gui {
             cards_view,
         };
         players_state.iter().for_each(|(id, state)| {
-            gui.sort_tabel(id, state.get_hand());
-            gui.sort_hand(id, state.get_hand());
+            let layout = if *id == client_id {
+                &layout.client
+            } else {
+                &layout.opp1
+            };
+            layout.sort_tabel(state, &mut gui);
+            layout.sort_hand(state, &mut gui);
         });
         (
             gui,
-            Store::new(players_state, cards, server_api, client_id, bd_cards),
+            Store::new(players_state, cards, client_id, bd_cards),
+            layout,
         )
     }
-    pub fn input(
-        &mut self,
-        sense: Sense,
-        players_state: &HashMap<PlayerId, PlayerState>,
-        selected_card: &mut SelectingCard,
-    ) -> Option<Action> {
-        // let drag_id = self.selecting_card.get_dragging_id();
-        // if let Some(component_type) = self
-        //     .players_view
-        //     .iter()
-        //     .find(|id_and_player| contains_rect(&sense.mouse_pos, &id_and_player.1.rect))
-        //     .map(|(id, view)| {
-        //         // let is_client = player.is_client();
-        //         // Response {
-        //         //     item: player.contains_child(
-        //         //         sense,
-        //         //         card_size,
-        //         //         if is_client { drag_id } else { None },
-        //         //     ),
-        //         //     player_id: *id,
-        //         //     click_up: sense.click_up,
-        //         //     click_down: sense.click_down,
-        //         //     is_client,
-        //         // }
-
-        //         //TODO: match player_type
-        //         let layout = match view.player_type() {
-        //             PlayerType::Client => &LAYOUT.match1x1.client,
-        //             _ => &LAYOUT.match1x1.opp, // PlayerType::Friendly => {}
-        //                                        // PlayerType::Opp => {}
-        //         };
-        //         view.contains_component(sense, players_state.get(id).unwrap(), layout)
-        //     })
-        {
-            godot_print!("{:?}", component_type);
-            return self.input_handler(component_type, sense, selected_card);
-        }
-        None
-    }
-    fn input_handler(
-        &mut self,
-        input_type: ComponentType,
-        sense: Sense,
-        selected_card: &mut SelectingCard,
-    ) -> Option<Action> {
-        if sense.click_down {
-            //click
-            match input_type {
-                ComponentType::TabelCard(card_id) => {
-                    // match res.player {
-                    //     PlayerType::Client=>{}
-                    //     PlayerType::Remote =>{}
-                    // }
-                }
-                ComponentType::HandCard(card_id) => {
-                    // client_flag.insert(FlagsForUpdate::HAND);
-                    // selected_card.drag(card_id);
-                    return Some(Action::Select(SelectAction::Drag(card_id)));
-                    // match res.player {
-                    //     PlayerType::Client => {
-                    //         //drag
-                    //         rendering.drag(card_id);
-                    //     }
-                    //     PlayerType::Remote => {}
-                    // }
-                }
-                ComponentType::Deck => {
-                    //+card and show card deck count / card dead deck
-
-                    // godot_print!("{:?}", res);
-                    return Some(Action::Client(ClientAction::TakeCard));
-                    // let side_player = self.get_side_player(res.player);
-                    // if let DeckType::BuildDeck = deck_type {
-                    //     side_player.player.add_mana(Mana::Red(2));
-                    // } else {
-                    //     let card_name = side_player.player.get_card_id();
-                    //     self.queue_command.push(
-                    //         CommandBuilder::default()
-                    //             .line(LineType::Hand)
-                    //             .build(res.player, Event::add_card(card_name)),
-                    //     );
-                    // self.query_command.push(match res.player {
-                    //     PlayerType::Client => Command::AddCardClientHand("deckmini1".to_string()), //self.side_client.add_card_on_hand(),
-                    //     PlayerType::Remote => Command::AddCardRemoteHand("deckmini1".to_string()),
-                    // });
-                }
-                ComponentType::Factories => {
-                    //show builds
-                    // self.players
-                    //     .get_mut(&self.client_id)
-                    //     .expect("player_client not found")
-                    //     .add_card_on_hand(create::card(owner, resources, 10000));
-                }
-                ComponentType::Equipment => {
-                    //show items
-                }
-                ComponentType::Character => {
-                    //show character descripton
-                }
-                // InputType::TabelCard(card_id) => {
-                //             // match res.player {
-                //             //     PlayerType::Client=>{}
-                //             //     PlayerType::Remote =>{}
-                //             // }
-                //         }
-                //         InputType::HandCard(card_id) => {
-                //             gui.drag(ctx, card_id);
-                //             // match res.player {
-                //             //     PlayerType::Client => {
-                //             //         //drag
-                //             //         rendering.drag(card_id);
-                //             //     }
-                //             //     PlayerType::Remote => {}
-                //             // }
-                //         }
-                //click on board
-                ComponentType::Tabel => {}
-                ComponentType::Hand => {}
-                ComponentType::None => {}
-                _ => {}
-            }
-        } else if selected_card.is_dragging() {
-            if sense.click_up {
-                //drop
-                match input_type {
-                    ComponentType::TabelCard(_) | ComponentType::Tabel => {
-                        //cast to tabel
-                        // let card_cost = rendering.get_card_cost(fit_card_id);
-                        //                     if self.side_client.player.try_pay_mana(card_cost) {
-                        //                         self.queue_command.push(
-                        //                             CommandBuilder::default().line(LineType::Hand).build(
-                        //                                 PlayerType::Client,
-                        //                                 Event::cast_on_tabel(fit_card_id),
-                        //                             ),
-                        //                         );
-                        //                         rendering.drop();
-                        if let Some(card_id) = selected_card.get_id_if_dragging() {
-                            return Some(Action::Client(ClientAction::CastCardOnTabel(card_id)));
-                        }
-                    }
-
-                    //     // LineType::Tabel => {
-                    //     //                 let card_cost = rendering.get_card_cost(fit_card_id);
-                    //     //                 if self.side_client.player.try_pay_mana(card_cost) {
-                    //     //                     self.queue_command.push(
-                    //     //                         CommandBuilder::default().line(LineType::Hand).build(
-                    //     //                             PlayerType::Client,
-                    //     //                             Event::cast_on_tabel(fit_card_id),
-                    //     //                         ),
-                    //     //                     );
-                    //     //                     rendering.drop();
-                    //     //                 }
-                    //     //             }
-                    // }
-                    // ResponseType::HandCard(card_id) => {
-                    //     match res.player {
-                    //         PlayerType::Client => {
-                    //             // swap card
-                    //             // self.player_client
-                    //             //     .swap_card_on_hand(dragging_card_id, card_id);
-                    //         }
-                    //         PlayerType::Remote => {}
-                    //     }
-                    // }
-                    // ResponseType::Hand => {}
-                    _ => {
-                        //drop
-                        // client_flag.insert(FlagsForUpdate::HAND);
-                        // selected_card.drop();
-                        return Some(Action::Select(SelectAction::Drop));
-                    }
-                }
-            } else {
-                match input_type {
-                    ComponentType::Tabel => {
-                        // ::TabelCard(card_id) => {
-                        //put card
-                    }
-                    ComponentType::Hand => { //
-                         // ResponseType::HandCard(card_id) => {
-                         //put card
-                         // if Client swap card
-                    }
-                    _ => {}
-                }
-            }
-        }
-        if let ComponentType::TabelCard(card_id) | ComponentType::HandCard(card_id) = input_type {
-            ////////////////////////gui.hovered(card_id);
-            return Some(Action::Select(SelectAction::Hover(card_id)));
-        }
-        None
-    }
-    pub fn sort_hand(&mut self, player_id: &PlayerId, line: &Line) {
-        let line_center = match self.players_view.get_mut(player_id).unwrap().player_type() {
-            PlayerType::Client => LAYOUT.match1x1.client.hand.get_center(),
-            _ => LAYOUT.match1x1.opp.hand.get_center(), // PlayerType::Friendly => {}
-                                                        // PlayerType::Opp => {}
-        };
-
-        let card_size = LAYOUT.card.card_size;
-        let card_indent = LAYOUT.card.card_indent;
-
-        if let Some((mut x, y)) =
-            alignment_line_point(line_center, line.len_float(), card_size, card_indent)
-        {
-            let x_indent = card_size.x + card_indent.x;
-
-            for i in 0..line.len() {
-                let card_id = line.get(i).unwrap();
-
-                self.get_mut_card(&card_id).set_position(vec2(x, y));
-                x += x_indent;
-            }
-        }
-    }
-    pub fn sort_tabel(&mut self, player_id: &PlayerId, line: &Line) {
-        let line_center = match self.players_view.get_mut(player_id).unwrap().player_type() {
-            PlayerType::Client => LAYOUT.match1x1.client.tabel.get_center(),
-            _ => LAYOUT.match1x1.opp.tabel.get_center(), // PlayerType::Friendly => {}
-                                                         // PlayerType::Opp => {}
-        };
-
-        let card_size = LAYOUT.card.card_size;
-        let card_indent = LAYOUT.card.card_indent;
-
-        if let Some((mut x, y)) =
-            alignment_line_point(line_center, line.len_float(), card_size, card_indent)
-        {
-            let x_indent = card_size.x + card_indent.x;
-
-            for i in 0..line.len() {
-                let card_id = line.get(i).unwrap();
-
-                self.get_mut_card(&card_id).set_position(vec2(x, y));
-                x += x_indent;
-            }
-        }
-    }
-
     pub fn create_card(&mut self, card_id: CardId, owner: &Node) {
         self.cards_view.insert(
             card_id,
@@ -386,9 +147,6 @@ impl Gui {
     }
     pub fn get_player_type(&self, player_id: &PlayerId) -> PlayerType {
         self.players_view.get(player_id).unwrap().player_type()
-    }
-    pub fn card_size(&self) -> Vec2 {
-        LAYOUT.card.card_size
     }
 }
 
@@ -428,55 +186,6 @@ impl PlayerView {
             // is_client,
             // player_id: player_data.id.clone(),
         }
-    }
-    pub fn contains_component(
-        &self,
-        sense: Sense,
-        player_state: &PlayerState,
-        layout: &LayoutPlayer,
-    ) -> ComponentType {
-        // if match self.player_type {
-        //     PlayerType::Client => sense.mouse_x > self.rect.center_x,
-        //     // PlayerType::Remote => sense.mouse_x < self.rect.center_x,
-        //     PlayerType::Remote => sense.mouse_x > self.rect.center_x,
-        // }
-        if sense.mouse_pos.x > self.rect.center_x {
-            if contains_rect(&sense.mouse_pos, &layout.equipment) {
-                return ComponentType::Equipment;
-            } else if contains_rect(&sense.mouse_pos, &layout.character) {
-                return ComponentType::Character;
-            }
-        } else if contains_rect(&sense.mouse_pos, &layout.deck) {
-            return ComponentType::Deck;
-        } else if contains_rect(&sense.mouse_pos, &layout.factories) {
-            return ComponentType::Factories;
-        }
-        if contains_rect(&sense.mouse_pos, &layout.hand) {
-            if let Some(card_id) = contains_cards_on_line(
-                sense,
-                player_state.get_hand(),
-                layout.hand.get_center(),
-                LAYOUT.card.card_size,
-                LAYOUT.card.card_indent,
-            ) {
-                ComponentType::HandCard(card_id)
-            } else {
-                ComponentType::Hand
-            };
-        } else if contains_rect(&sense.mouse_pos, &layout.tabel) {
-            return if let Some(card_id) = contains_cards_on_line(
-                sense,
-                player_state.get_tabel(),
-                layout.tabel.get_center(),
-                LAYOUT.card.card_size,
-                LAYOUT.card.card_indent,
-            ) {
-                ComponentType::TabelCard(card_id)
-            } else {
-                ComponentType::Tabel
-            };
-        }
-        ComponentType::None
     }
     pub fn player_type(&self) -> PlayerType {
         self.player_type
